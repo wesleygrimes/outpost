@@ -175,13 +175,16 @@ func remoteServerSetup(sshTarget string) error {
 		printCheckItem("Systemd", "outpost.service enabled and started")
 	}
 
-	saveRemoteCredentials(sshTarget, setupResult)
+	// Resolve the SSH alias to an actual reachable address.
+	remoteAddr := resolveSSHHostname(sshTarget)
+
+	saveRemoteCredentials(remoteAddr, setupResult)
 	verifyRemoteConnection()
 
 	fmt.Fprintln(os.Stderr)
 	printBoxRow("  Token: " + setupResult["token"])
 	printBoxRow("  To connect from another machine:")
-	printBoxRow("    outpost login " + sshTarget + ":" + setupResult["port"] + " " + setupResult["token"])
+	printBoxRow("    outpost login " + remoteAddr + ":" + setupResult["port"] + " " + setupResult["token"])
 	printBoxBottom()
 
 	return nil
@@ -394,6 +397,21 @@ func installRemotePrereqs(sshTarget string) {
 
 	// Install Claude Code if missing.
 	_, _ = sshRun(sshTarget, "command -v claude || npm install -g @anthropic-ai/claude-code")
+}
+
+// resolveSSHHostname resolves an SSH config Host alias to the actual HostName
+// using `ssh -G`, which dumps the resolved config without connecting.
+func resolveSSHHostname(alias string) string {
+	out, err := exec.Command("ssh", "-G", alias).Output()
+	if err != nil {
+		return alias
+	}
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if addr, ok := strings.CutPrefix(line, "hostname "); ok {
+			return addr
+		}
+	}
+	return alias
 }
 
 // validateSSHHost checks that the target looks like an SSH config Host alias
