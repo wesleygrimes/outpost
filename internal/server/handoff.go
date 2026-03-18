@@ -15,16 +15,16 @@ import (
 	"github.com/wesgrimes/outpost/internal/store"
 )
 
-const maxBundleSize = 2 << 30 // 2 GB
+const maxUploadSize = 2 << 30 // 2 GB
 
 func (s *Server) handleHandoff(w http.ResponseWriter, r *http.Request) {
 	if s.atCapacity(w) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxBundleSize)
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
-	if err := r.ParseMultipartForm(maxBundleSize); err != nil {
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid multipart form: "+err.Error())
 		return
 	}
@@ -34,7 +34,7 @@ func (s *Server) handleHandoff(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	defer func() { _ = params.bundleFile.Close() }()
+	defer func() { _ = params.archive.Close() }()
 
 	paths, err := prepareRunDir(params)
 	if err != nil {
@@ -42,10 +42,10 @@ func (s *Server) handleHandoff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseSHA, err := runner.Unbundle(paths.bundle, paths.repo, params.branch)
+	baseSHA, err := runner.Extract(paths.archive, paths.repo, params.branch)
 	if err != nil {
 		cleanupRunDir(paths.dir)
-		writeError(w, http.StatusInternalServerError, "unbundling: "+err.Error())
+		writeError(w, http.StatusInternalServerError, "extracting: "+err.Error())
 
 		return
 	}
@@ -61,6 +61,7 @@ func (s *Server) handleHandoff(w http.ResponseWriter, r *http.Request) {
 		Attach:    fmt.Sprintf("ssh outpost -t 'tmux attach -t %s'", params.runID),
 		Branch:    params.branch,
 		MaxTurns:  params.maxTurns,
+		Subdir:    params.subdir,
 		Dir:       paths.dir,
 	}
 
@@ -92,7 +93,7 @@ func (s *Server) handleHandoff(w http.ResponseWriter, r *http.Request) {
 		r.Status = store.StatusRunning
 	})
 
-	writeJSON(w, http.StatusAccepted, map[string]string{
+	writeResponse(w, r, http.StatusAccepted, map[string]string{
 		"id":     params.runID,
 		"status": string(store.StatusRunning),
 		"attach": run.Attach,
@@ -128,22 +129,23 @@ func (s *Server) atCapacity(w http.ResponseWriter) bool {
 }
 
 type handoffParams struct {
-	runID      string
-	name       string
-	mode       string
-	branch     string
-	maxTurns   int
-	plan       string
-	bundleFile io.ReadCloser
+	runID    string
+	name     string
+	mode     string
+	branch   string
+	subdir   string
+	maxTurns int
+	plan     string
+	archive  io.ReadCloser
 }
 
 type runPaths struct {
-	dir    string
-	repo   string
-	bundle string
-	plan   string
-	log    string
-	patch  string
+	dir     string
+	repo    string
+	archive string
+	plan    string
+	log     string
+	patch   string
 }
 
 func parseHandoffParams(r *http.Request) (*handoffParams, error) {
@@ -152,9 +154,9 @@ func parseHandoffParams(r *http.Request) (*handoffParams, error) {
 		return nil, errors.New("plan field is required")
 	}
 
-	bundleFile, _, err := r.FormFile("bundle")
+	archive, _, err := r.FormFile("archive")
 	if err != nil {
-		return nil, fmt.Errorf("bundle file is required: %w", err)
+		return nil, fmt.Errorf("archive file is required: %w", err)
 	}
 
 	mode := r.FormValue("mode")
@@ -163,7 +165,7 @@ func parseHandoffParams(r *http.Request) (*handoffParams, error) {
 	}
 
 	if err := runner.ValidateMode(mode); err != nil {
-		_ = bundleFile.Close()
+		_ = archive.Close()
 		return nil, err
 	}
 
@@ -175,13 +177,14 @@ func parseHandoffParams(r *http.Request) (*handoffParams, error) {
 	}
 
 	return &handoffParams{
-		runID:      runner.GenerateRunID(r.FormValue("name")),
-		name:       r.FormValue("name"),
-		mode:       mode,
-		branch:     r.FormValue("branch"),
-		maxTurns:   maxTurns,
-		plan:       plan,
-		bundleFile: bundleFile,
+		runID:    runner.GenerateRunID(r.FormValue("name")),
+		name:     r.FormValue("name"),
+		mode:     mode,
+		branch:   r.FormValue("branch"),
+		subdir:   r.FormValue("subdir"),
+		maxTurns: maxTurns,
+		plan:     plan,
+		archive:  archive,
 	}, nil
 }
 
@@ -194,37 +197,37 @@ func prepareRunDir(params *handoffParams) (*runPaths, error) {
 	runDir := filepath.Join(home, ".outpost", "runs", params.runID)
 
 	paths := &runPaths{
-		dir:    runDir,
-		repo:   filepath.Join(runDir, "repo"),
-		bundle: filepath.Join(runDir, "bundle.pack"),
-		plan:   filepath.Join(runDir, "plan.md"),
-		log:    filepath.Join(runDir, "output.log"),
-		patch:  filepath.Join(runDir, "result.patch"),
+		dir:     runDir,
+		repo:    filepath.Join(runDir, "repo"),
+		archive: filepath.Join(runDir, "archive.tar.gz"),
+		plan:    filepath.Join(runDir, "plan.md"),
+		log:     filepath.Join(runDir, "output.log"),
+		patch:   filepath.Join(runDir, "result.patch"),
 	}
 
 	if err := os.MkdirAll(paths.repo, 0o700); err != nil {
 		return nil, fmt.Errorf("creating run directory: %w", err)
 	}
 
-	// Write bundle to disk.
-	dst, err := os.Create(paths.bundle)
+	// Write archive to disk.
+	dst, err := os.Create(paths.archive)
 	if err != nil {
 		cleanupRunDir(paths.dir)
-		return nil, fmt.Errorf("creating bundle file: %w", err)
+		return nil, fmt.Errorf("creating archive file: %w", err)
 	}
 
-	_, copyErr := io.Copy(dst, params.bundleFile)
+	_, copyErr := io.Copy(dst, params.archive)
 
 	closeErr := dst.Close()
 
 	if copyErr != nil {
 		cleanupRunDir(paths.dir)
-		return nil, fmt.Errorf("writing bundle: %w", copyErr)
+		return nil, fmt.Errorf("writing archive: %w", copyErr)
 	}
 
 	if closeErr != nil {
 		cleanupRunDir(paths.dir)
-		return nil, fmt.Errorf("closing bundle file: %w", closeErr)
+		return nil, fmt.Errorf("closing archive file: %w", closeErr)
 	}
 
 	// Write plan with restrictive permissions.

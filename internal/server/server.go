@@ -4,8 +4,10 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/wesgrimes/outpost/internal/config"
@@ -67,9 +69,23 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	writeResponse(w, r, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// wantsText returns true if the client prefers text/plain responses.
+func wantsText(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "text/plain")
+}
+
+// writeResponse writes JSON or text/plain key=value depending on Accept header.
+func writeResponse(w http.ResponseWriter, r *http.Request, status int, v any) {
+	if wantsText(r) {
+		writeText(w, status, v)
+		return
+	}
+
+	writeJSON(w, status, v)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -78,6 +94,65 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		log.Printf("encoding json response: %v", err)
+	}
+}
+
+func writeText(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(status)
+
+	var b strings.Builder
+
+	switch val := v.(type) {
+	case map[string]string:
+		for k, v := range val {
+			fmt.Fprintf(&b, "%s=%s\n", k, v)
+		}
+	case *store.Run:
+		writeRunText(&b, val)
+	case []*store.Run:
+		for i, run := range val {
+			if i > 0 {
+				b.WriteString("---\n")
+			}
+
+			writeRunText(&b, run)
+		}
+	default:
+		if err := json.NewEncoder(w).Encode(v); err != nil {
+			log.Printf("encoding fallback json response: %v", err)
+		}
+
+		return
+	}
+
+	_, _ = io.WriteString(w, b.String())
+}
+
+func writeRunText(b *strings.Builder, r *store.Run) {
+	fmt.Fprintf(b, "id=%s\n", r.ID)
+	fmt.Fprintf(b, "name=%s\n", r.Name)
+	fmt.Fprintf(b, "mode=%s\n", r.Mode)
+	fmt.Fprintf(b, "status=%s\n", r.Status)
+	fmt.Fprintf(b, "base_sha=%s\n", r.BaseSHA)
+	fmt.Fprintf(b, "created_at=%s\n", r.CreatedAt.Format(time.RFC3339))
+	fmt.Fprintf(b, "attach=%s\n", r.Attach)
+	fmt.Fprintf(b, "patch_ready=%t\n", r.PatchReady)
+
+	if r.FinalSHA != "" {
+		fmt.Fprintf(b, "final_sha=%s\n", r.FinalSHA)
+	}
+
+	if r.FinishedAt != nil {
+		fmt.Fprintf(b, "finished_at=%s\n", r.FinishedAt.Format(time.RFC3339))
+	}
+
+	if r.Subdir != "" {
+		fmt.Fprintf(b, "subdir=%s\n", r.Subdir)
+	}
+
+	if r.LogTail != "" {
+		fmt.Fprintf(b, "log_tail=%s\n", r.LogTail)
 	}
 }
 

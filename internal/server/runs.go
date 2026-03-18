@@ -5,19 +5,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/wesgrimes/outpost/internal/store"
 )
 
-func (s *Server) handleListRuns(w http.ResponseWriter, _ *http.Request) {
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z@]|\x1b\][^\x07]*\x07|\x1b[()][AB012]`)
+
+func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	runs := s.store.List()
 	if runs == nil {
 		runs = []*store.Run{}
 	}
 
-	writeJSON(w, http.StatusOK, runs)
+	writeResponse(w, r, http.StatusOK, runs)
 }
 
 func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +38,7 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 		run.LogTail = readTail(logPath, 80)
 	}
 
-	writeJSON(w, http.StatusOK, run)
+	writeResponse(w, r, http.StatusOK, run)
 }
 
 func (s *Server) handleGetPatch(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +95,7 @@ func (s *Server) handleDeleteRun(w http.ResponseWriter, r *http.Request) {
 	})
 
 	run, _ = s.store.Get(id)
-	writeJSON(w, http.StatusOK, run)
+	writeResponse(w, r, http.StatusOK, run)
 }
 
 func capturePartialPatch(run *store.Run) {
@@ -121,12 +124,19 @@ func readTail(path string, lines int) string {
 		return ""
 	}
 
-	allLines := strings.Split(string(data), "\n")
+	clean := stripANSI(string(data))
+	allLines := strings.Split(clean, "\n")
+
 	if len(allLines) <= lines {
-		return string(data)
+		return clean
 	}
 
 	return strings.Join(allLines[len(allLines)-lines:], "\n")
+}
+
+// stripANSI removes ANSI escape sequences so log_tail is safe for JSON encoding.
+func stripANSI(s string) string {
+	return ansiRe.ReplaceAllString(s, "")
 }
 
 func runGit(repoDir string, args ...string) (string, error) {

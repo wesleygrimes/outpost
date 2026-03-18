@@ -36,7 +36,7 @@ func (s *Server) handleCleanup(w http.ResponseWriter, r *http.Request) {
 		r.Dir = ""
 	})
 
-	writeJSON(w, http.StatusOK, map[string]string{
+	writeResponse(w, r, http.StatusOK, map[string]string{
 		"id":     id,
 		"status": "cleaned up",
 	})

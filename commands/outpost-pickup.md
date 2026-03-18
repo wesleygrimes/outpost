@@ -4,23 +4,36 @@ Usage: /outpost-pickup <run_id>
 
 Arguments: $ARGUMENTS
 
+IMPORTANT: Do not use python for any step. Use only bash, curl, and git. Responses are text/plain key=value pairs.
+
 A run_id is required. If not provided, tell the user to run `/outpost-status` first to find the run ID.
 
 Follow these steps:
 
 1. **Set up connection:**
    ```bash
-   OUTPOST_URL="${OUTPOST_URL:-http://outpost.grimes.pro:7600}"
-   OUTPOST_TOKEN="$(cat ~/.outpost-token 2>/dev/null)"
+   OUTPOST_URL="${OUTPOST_URL:-$(cat ~/.outpost-url 2>/dev/null)}"
+   OUTPOST_TOKEN="${OUTPOST_TOKEN:-$(cat ~/.outpost-token 2>/dev/null)}"
    RUN_ID="<run_id from arguments>"
+
+   if [ -z "$OUTPOST_URL" ] || [ -z "$OUTPOST_TOKEN" ]; then
+     echo "Missing Outpost config. Create ~/.outpost-url and ~/.outpost-token"
+     exit 1
+   fi
    ```
 
 2. **Verify the run is complete:**
    ```bash
    STATUS_RESPONSE=$(curl -s "$OUTPOST_URL/runs/$RUN_ID" \
-     -H "Authorization: Bearer $OUTPOST_TOKEN")
+     -H "Authorization: Bearer $OUTPOST_TOKEN" \
+     -H "Accept: text/plain")
    ```
-   Check that status is "complete" or "killed" and patch_ready is true.
+   Check that status is "complete" or "killed" and patch_ready is "true":
+   ```bash
+   STATUS=$(echo "$STATUS_RESPONSE" | grep '^status=' | cut -d= -f2-)
+   PATCH_READY=$(echo "$STATUS_RESPONSE" | grep '^patch_ready=' | cut -d= -f2-)
+   SUBDIR=$(echo "$STATUS_RESPONSE" | grep '^subdir=' | cut -d= -f2-)
+   ```
    If not ready, report the current status and stop.
 
 3. **Download the patch:**
@@ -35,7 +48,14 @@ Follow these steps:
    ```bash
    git worktree add -b "outpost/$RUN_ID" "../outpost-$RUN_ID"
    cd "../outpost-$RUN_ID"
-   git apply "/tmp/outpost-patches/$RUN_ID.patch"
+   ```
+   If the run has a `subdir` value, the patch paths are relative to that subdirectory. Apply with `--directory`:
+   ```bash
+   if [ -n "$SUBDIR" ]; then
+     git apply --directory="$SUBDIR" "/tmp/outpost-patches/$RUN_ID.patch"
+   else
+     git apply "/tmp/outpost-patches/$RUN_ID.patch"
+   fi
    git add -A
    git commit -m "outpost: run $RUN_ID"
    ```
@@ -49,7 +69,8 @@ Follow these steps:
 6. **Only on success**, clean up the remote run:
    ```bash
    curl -s -X POST "$OUTPOST_URL/runs/$RUN_ID/cleanup" \
-     -H "Authorization: Bearer $OUTPOST_TOKEN"
+     -H "Authorization: Bearer $OUTPOST_TOKEN" \
+     -H "Accept: text/plain"
    ```
 
 7. **Clean up local temp:**

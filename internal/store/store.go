@@ -33,6 +33,7 @@ type Run struct {
 	PatchReady bool       `json:"patch_ready"`
 	Branch     string     `json:"branch,omitempty"`
 	MaxTurns   int        `json:"max_turns,omitempty"`
+	Subdir     string     `json:"subdir,omitempty"`
 	Dir        string     `json:"-"`
 }
 
