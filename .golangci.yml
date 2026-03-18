@@ -64,6 +64,7 @@ linters:
         - G702  # command args are internal, not user-controlled
         - G703  # paths are constructed internally
         - G706  # log content is internal run IDs
+        - G115  # int-to-int32 conversions are bounded by domain logic
 
     gocyclo:
       min-complexity: 15
@@ -93,6 +94,8 @@ formatters:
 
 issues:
   max-same-issues: 0
+  exclude-dirs:
+    - gen
 
   exclude-rules:
     - path: _test\.go

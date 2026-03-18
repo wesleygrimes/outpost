@@ -1,6 +1,6 @@
 GOLANGCI_LINT := /opt/homebrew/bin/golangci-lint
 
-.PHONY: all build build-linux lint fmt vet check clean
+.PHONY: all build build-linux proto lint fmt vet check clean
 
 all: check build
 
@@ -9,6 +9,9 @@ build:
 
 build-linux:
 	GOOS=linux GOARCH=amd64 go build -o bin/outpost-linux .
+
+proto:
+	cd proto && buf lint && buf generate
 
 lint:
 	$(GOLANGCI_LINT) run ./...
@@ -19,7 +22,10 @@ fmt:
 vet:
 	go vet ./...
 
-check: vet lint
+test:
+	go test -race -count=1 ./...
+
+check: vet lint test
 
 clean:
 	rm -rf bin/

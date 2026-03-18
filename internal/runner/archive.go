@@ -2,59 +2,79 @@ package runner
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
 
-// Extract unpacks a tarball into destDir, initializes a git repo to establish
-// a base SHA for diffing, and optionally creates a branch.
+// Extract unpacks a tar.gz archive into destDir, initializes a git repo, and returns the base SHA.
 func Extract(archivePath, destDir, branch string) (string, error) {
-	tarCmd := exec.Command("tar", "xzf", archivePath, "-C", destDir)
-	if out, err := tarCmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("extracting archive: %w\n%s", err, out)
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return "", fmt.Errorf("mkdir: %w", err)
 	}
 
-	// Initialize a git repo so we can diff against the base state later.
-	if out, err := exec.Command("git", "-C", destDir, "init").CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git init: %w\n%s", err, out)
+	cmd := exec.Command("tar", "xzf", archivePath, "-C", destDir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("extract: %w: %s", err, out)
 	}
 
-	if out, err := exec.Command("git", "-C", destDir, "add", "-A").CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git add: %w\n%s", err, out)
+	if err := runGitInDir(destDir, "init"); err != nil {
+		return "", fmt.Errorf("git init: %w", err)
 	}
 
-	commitCmd := exec.Command("git", "-C", destDir, "commit", "-m", "outpost: base snapshot")
-	commitCmd.Env = append(commitCmd.Environ(),
-		"GIT_AUTHOR_NAME=outpost",
-		"GIT_AUTHOR_EMAIL=outpost@localhost",
-		"GIT_COMMITTER_NAME=outpost",
-		"GIT_COMMITTER_EMAIL=outpost@localhost",
-	)
+	if err := runGitInDir(destDir, "add", "-A"); err != nil {
+		return "", fmt.Errorf("git add: %w", err)
+	}
 
-	if out, err := commitCmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git commit: %w\n%s", err, out)
+	if err := runGitInDir(destDir, "commit", "-m", "outpost: initial commit",
+		"--author", "outpost <outpost@local>"); err != nil {
+		return "", fmt.Errorf("git commit: %w", err)
 	}
 
 	if branch != "" {
-		if out, err := exec.Command("git", "-C", destDir, "checkout", "-b", branch).CombinedOutput(); err != nil {
-			return "", fmt.Errorf("git checkout -b %s: %w\n%s", branch, err, out)
+		if err := runGitInDir(destDir, "checkout", "-b", branch); err != nil {
+			return "", fmt.Errorf("git checkout -b: %w", err)
 		}
 	}
 
-	sha, err := headSHA(destDir)
+	sha, err := gitOutput(destDir, "rev-parse", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("rev-parse: %w", err)
+	}
+
+	return strings.TrimSpace(sha), nil
+}
+
+// GitHeadSHA returns the HEAD commit SHA for a repo directory.
+func GitHeadSHA(dir string) (string, error) {
+	out, err := gitOutput(dir, "rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
-
-	return sha, nil
+	return strings.TrimSpace(out), nil
 }
 
-func headSHA(repoDir string) (string, error) {
-	cmd := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD")
+func runGitInDir(dir string, args ...string) error {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=outpost",
+		"GIT_AUTHOR_EMAIL=outpost@local",
+		"GIT_COMMITTER_NAME=outpost",
+		"GIT_COMMITTER_EMAIL=outpost@local",
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%w: %s", err, out)
+	}
+	return nil
+}
+
+func gitOutput(dir string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git rev-parse HEAD: %w", err)
+		return "", err
 	}
-
-	return strings.TrimSpace(string(out)), nil
+	return string(out), nil
 }

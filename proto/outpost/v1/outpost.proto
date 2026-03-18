@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package outpost.v1;
+
+option go_package = "github.com/wesgrimes/outpost/gen/outpost/v1;outpostv1";
+
+import "google/protobuf/timestamp.proto";
+
+// ---------- Enums ----------
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PENDING     = 1;
+  RUN_STATUS_RUNNING     = 2;
+  RUN_STATUS_COMPLETE    = 3;
+  RUN_STATUS_FAILED      = 4;
+  RUN_STATUS_DROPPED     = 5;
+}
+
+enum RunMode {
+  RUN_MODE_UNSPECIFIED = 0;
+  RUN_MODE_INTERACTIVE = 1;
+  RUN_MODE_HEADLESS    = 2;
+}
+
+// ---------- Core message ----------
+
+message Run {
+  string                    id          = 1;
+  string                    name        = 2;
+  RunMode                   mode        = 3;
+  RunStatus                 status      = 4;
+  string                    base_sha    = 5;
+  string                    final_sha   = 6;
+  google.protobuf.Timestamp created_at  = 7;
+  google.protobuf.Timestamp finished_at = 8;
+  string                    attach      = 9;
+  string                    log_tail    = 10;
+  bool                      patch_ready = 11;
+  string                    branch      = 12;
+  int32                     max_turns   = 13;
+  string                    subdir      = 14;
+}
+
+// ---------- Unary ----------
+
+message GetRunRequest { string id = 1; }
+
+message GetRunResponse { Run run = 1; }
+
+message ListRunsRequest {}
+
+message ListRunsResponse { repeated Run runs = 1; }
+
+message DropRunRequest { string id = 1; }
+
+message DropRunResponse { string id = 1; }
+
+message CleanupRunRequest { string id = 1; }
+
+message CleanupRunResponse {
+  string id     = 1;
+  string status = 2;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse { string status = 1; }
+
+// ---------- Client streaming: Handoff ----------
+
+message HandoffRequest {
+  oneof payload {
+    HandoffMetadata metadata = 1;
+    bytes           data     = 2; // 64 KiB archive chunks
+  }
+}
+
+message HandoffMetadata {
+  string  plan      = 1;
+  RunMode mode      = 2;
+  string  name      = 3;
+  string  branch    = 4;
+  int32   max_turns = 5;
+  string  subdir    = 6;
+}
+
+message HandoffResponse {
+  string    id     = 1;
+  RunStatus status = 2;
+  string    attach = 3;
+}
+
+// ---------- Server streaming: TailLogs ----------
+
+message TailLogsRequest {
+  string id     = 1;
+  bool   follow = 2; // stream until run completes
+}
+
+message TailLogsResponse { string line = 1; }
+
+// ---------- Server streaming: DownloadPatch ----------
+
+message DownloadPatchRequest { string id = 1; }
+
+message DownloadPatchResponse { bytes data = 1; }
+
+// ---------- Bidi streaming: Attach ----------
+
+message AttachRequest { bytes data = 1; }
+
+message AttachResponse { bytes data = 1; }
+
+// ---------- Service ----------
+
+service OutpostService {
+  // Unary
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GetRun(GetRunRequest)           returns (GetRunResponse);
+  rpc ListRuns(ListRunsRequest)       returns (ListRunsResponse);
+  rpc DropRun(DropRunRequest)         returns (DropRunResponse);
+  rpc CleanupRun(CleanupRunRequest)   returns (CleanupRunResponse);
+
+  // Client streaming
+  rpc Handoff(stream HandoffRequest) returns (HandoffResponse);
+
+  // Server streaming
+  rpc TailLogs(TailLogsRequest)             returns (stream TailLogsResponse);
+  rpc DownloadPatch(DownloadPatchRequest)   returns (stream DownloadPatchResponse);
+
+  // Bidi streaming
+  rpc Attach(stream AttachRequest) returns (stream AttachResponse);
+}

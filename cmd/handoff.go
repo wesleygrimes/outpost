@@ -1,104 +1,101 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
+	"strconv"
 
-	"github.com/wesgrimes/outpost/internal/client"
+	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesgrimes/outpost/internal/runner"
+	"github.com/wesgrimes/outpost/internal/store"
 )
 
-// Handoff creates an archive of the working tree and submits it with a plan to the Outpost server.
-func Handoff(args []string) {
-	fs := flag.NewFlagSet("handoff", flag.ExitOnError)
-	planPath := fs.String("plan", "", "path to the plan file (required)")
-	mode := fs.String("mode", "interactive", "execution mode: interactive or headless")
+// Handoff creates an archive and streams it to the Outpost server.
+func Handoff(args []string) error {
+	fs := flag.NewFlagSet("handoff", flag.ContinueOnError)
+	planPath := fs.String("plan", "", "path to plan file")
+	mode := fs.String("mode", "interactive", "run mode (interactive or headless)")
 	name := fs.String("name", "", "run name")
-	branch := fs.String("branch", "", "git branch name")
-	maxTurns := fs.Int("max-turns", 50, "max turns for headless mode")
-
-	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: outpost handoff --plan FILE [--mode MODE] [--name NAME] [--branch BRANCH] [--max-turns N]")
-		fs.PrintDefaults()
-	}
+	branch := fs.String("branch", "", "git branch")
+	maxTurns := fs.Int("max-turns", runner.DefaultMaxTurns, "max turns")
+	subdir := fs.String("subdir", "", "subdirectory")
 
 	if err := fs.Parse(args); err != nil {
-		os.Exit(1)
+		return err
 	}
 
 	if *planPath == "" {
-		fmt.Fprintln(os.Stderr, "error: --plan is required")
-		fs.Usage()
-		os.Exit(1)
+		return errors.New("--plan is required")
 	}
 
-	if _, err := os.Stat(*planPath); err != nil {
-		fatalf("plan file: %v", err)
+	plan, err := os.ReadFile(*planPath)
+	if err != nil {
+		return fmt.Errorf("read plan: %w", err)
 	}
-
-	subdir := detectSubdir()
 
 	archivePath, err := createArchive()
 	if err != nil {
-		fatalf("creating archive: %v", err)
+		return fmt.Errorf("create archive: %w", err)
 	}
 	defer func() { _ = os.Remove(archivePath) }()
 
-	c, err := client.Load()
+	client, err := grpcclient.Load()
 	if err != nil {
-		fatalf("%v", err)
+		return err
 	}
+	defer logClose(client)
 
-	result, err := c.Handoff(&client.HandoffParams{
-		PlanPath:    *planPath,
-		ArchivePath: archivePath,
-		Mode:        *mode,
-		Name:        *name,
-		Branch:      *branch,
-		MaxTurns:    *maxTurns,
-		Subdir:      subdir,
+	result, err := client.Handoff(context.Background(), archivePath, &grpcclient.HandoffMeta{
+		Plan:     string(plan),
+		Mode:     store.ModeToProto(store.Mode(*mode)),
+		Name:     *name,
+		Branch:   *branch,
+		MaxTurns: int32(*maxTurns),
+		Subdir:   *subdir,
+	}, func(sent, total int64) {
+		fmt.Fprintf(os.Stderr, "\ruploading... %s / %s",
+			formatMB(sent), formatMB(total))
 	})
 	if err != nil {
-		fatalf("%v", err)
+		return err
 	}
+
+	fmt.Fprintln(os.Stderr)
 
 	fmt.Printf("id=%s\n", result.ID)
 	fmt.Printf("status=%s\n", result.Status)
-
 	if result.Attach != "" {
 		fmt.Printf("attach=%s\n", result.Attach)
 	}
+
+	return nil
 }
 
-// detectSubdir returns the git subdirectory prefix (for monorepo support).
-// Returns empty string if at the repo root or outside a git repo.
-func detectSubdir() string {
-	out, err := exec.Command("git", "rev-parse", "--show-prefix").Output()
-	if err != nil {
-		return ""
-	}
-
-	return strings.TrimRight(strings.TrimSpace(string(out)), "/")
+func formatMB(b int64) string {
+	return strconv.FormatFloat(float64(b)/1024/1024, 'f', 1, 64) + " MB"
 }
 
-// createArchive builds a tar.gz of tracked and untracked files in the working directory.
-// Returns the path to the temp archive file.
 func createArchive() (string, error) {
 	f, err := os.CreateTemp("", "outpost-archive-*.tar.gz")
 	if err != nil {
-		return "", fmt.Errorf("creating temp file: %w", err)
+		return "", err
 	}
-	_ = f.Close()
+	archivePath := f.Name()
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("close temp file: %w", err)
+	}
 
 	cmd := exec.Command("bash", "-c",
-		"git ls-files -co --exclude-standard | tar czf "+f.Name()+" -T -")
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		_ = os.Remove(f.Name())
-		return "", fmt.Errorf("%w: %s", err, out)
+		fmt.Sprintf("git ls-files -co --exclude-standard | tar czf %q -T -", archivePath))
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		_ = os.Remove(archivePath)
+		return "", fmt.Errorf("tar: %w", err)
 	}
 
-	return f.Name(), nil
+	return archivePath, nil
 }

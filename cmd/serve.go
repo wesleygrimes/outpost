@@ -3,26 +3,35 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/server"
+	"github.com/wesgrimes/outpost/internal/grpcserver"
 	"github.com/wesgrimes/outpost/internal/store"
 )
 
-// Serve loads config and starts the HTTP server.
-func Serve() {
+// Serve loads config, creates the gRPC server, and handles signals.
+func Serve() error {
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading config: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Run 'outpost setup' first.")
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	st := store.New()
-	srv := server.New(cfg, st)
-
-	if err := srv.ListenAndServe(); err != nil {
-		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
-		os.Exit(1)
+	srv, err := grpcserver.New(cfg, st)
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
 	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		fmt.Fprintln(os.Stderr, "\noutpost: shutting down...")
+		srv.GracefulStop()
+	}()
+
+	return srv.ListenAndServe()
 }

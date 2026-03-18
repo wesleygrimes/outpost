@@ -1,83 +1,68 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
-	"text/tabwriter"
-	"time"
 
-	"github.com/wesgrimes/outpost/internal/client"
+	"github.com/wesgrimes/outpost/internal/grpcclient"
 )
 
-// Status lists all runs or shows detail for a single run via the remote Outpost server.
-func Status(args []string) {
-	c, err := client.Load()
-	if err != nil {
-		fatalf("%v", err)
+// Status lists runs or shows detail for a specific run.
+func Status(args []string) error {
+	follow := false
+	var id string
+
+	for _, arg := range args {
+		if arg == "--follow" || arg == "-f" {
+			follow = true
+		} else {
+			id = arg
+		}
 	}
 
-	if len(args) == 0 {
-		statusList(c)
-	} else {
-		statusDetail(c, args[0])
+	client, err := grpcclient.Load()
+	if err != nil {
+		return err
 	}
+	defer logClose(client)
+
+	ctx := context.Background()
+
+	if follow && id != "" {
+		return followLogs(ctx, client, id)
+	}
+
+	if id != "" {
+		return showRunDetail(ctx, client, id)
+	}
+
+	runs, err := client.ListRuns(ctx)
+	if err != nil {
+		return err
+	}
+	return printRunsTable(runs)
 }
 
-func statusList(c *client.Client) {
-	runs, err := c.ListRuns()
+func followLogs(ctx context.Context, client *grpcclient.Client, id string) error {
+	fmt.Fprintf(os.Stderr, "following run %s...\n", id)
+
+	stream, err := client.TailLogs(ctx, id, true)
 	if err != nil {
-		fatalf("%v", err)
+		return err
 	}
 
-	if len(runs) == 0 {
-		fmt.Println("No runs found.")
-		return
-	}
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
-	fmt.Fprintln(w, "ID\tSTATUS\tMODE\tCREATED") //nolint:errcheck // writing to stdout
-
-	for i := range runs {
-		r := runs[i]
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.ID, r.Status, r.Mode, relativeTime(r.CreatedAt)) //nolint:errcheck // writing to stdout
-	}
-
-	_ = w.Flush()
-}
-
-func statusDetail(c *client.Client, id string) {
-	run, err := c.GetRun(id)
-	if err != nil {
-		fatalf("%v", err)
-	}
-
-	fmt.Printf("id=%s\n", run.ID)
-	fmt.Printf("name=%s\n", run.Name)
-	fmt.Printf("mode=%s\n", run.Mode)
-	fmt.Printf("status=%s\n", run.Status)
-	fmt.Printf("created_at=%s\n", run.CreatedAt.Format(time.RFC3339))
-	fmt.Printf("patch_ready=%t\n", run.PatchReady)
-
-	if run.Attach != "" {
-		fmt.Printf("attach=%s\n", run.Attach)
-	}
-
-	if run.Subdir != "" {
-		fmt.Printf("subdir=%s\n", run.Subdir)
-	}
-
-	if run.FinalSHA != "" {
-		fmt.Printf("final_sha=%s\n", run.FinalSHA)
-	}
-
-	if run.FinishedAt != nil {
-		fmt.Printf("finished_at=%s\n", run.FinishedAt.Format(time.RFC3339))
-	}
-
-	if run.LogTail != "" {
-		fmt.Println()
-		fmt.Println("--- log tail ---")
-		fmt.Println(run.LogTail)
+	for {
+		entry, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			fmt.Fprintln(os.Stderr, "run completed")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Println(entry.GetLine())
 	}
 }

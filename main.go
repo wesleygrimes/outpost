@@ -9,32 +9,53 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: outpost <command>")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Server:  setup, serve, runs")
-		fmt.Fprintln(os.Stderr, "Client:  login, handoff, status, pickup, kill")
+		printUsage()
 		os.Exit(1)
 	}
 
+	var err error
+
 	switch os.Args[1] {
 	case "setup":
-		cmd.Setup()
+		err = cmd.Setup()
 	case "serve":
-		cmd.Serve()
+		err = cmd.Serve()
 	case "runs":
-		cmd.Runs(os.Args[2:])
+		err = cmd.Runs(os.Args[2:])
 	case "login":
-		cmd.Login(os.Args[2:])
+		err = cmd.Login(os.Args[2:])
 	case "handoff":
-		cmd.Handoff(os.Args[2:])
+		err = cmd.Handoff(os.Args[2:])
 	case "status":
-		cmd.Status(os.Args[2:])
+		err = cmd.Status(os.Args[2:])
 	case "pickup":
-		cmd.Pickup(os.Args[2:])
-	case "kill":
-		cmd.KillRun(os.Args[2:])
+		err = cmd.Pickup(os.Args[2:])
+	case "drop":
+		err = cmd.Drop(os.Args[2:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "error: unknown command %q\n", os.Args[1])
+		printUsage()
 		os.Exit(1)
 	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func printUsage() {
+	fmt.Fprintln(os.Stderr, `Usage: outpost <command>
+
+Server commands:
+  setup    Configure a new Outpost server
+  serve    Start the Outpost gRPC server
+  runs     List runs (server-local)
+
+Client commands:
+  login    Connect to an Outpost server
+  handoff  Hand off work to the server
+  status   Check run status
+  pickup   Download completed patch
+  drop     Drop a run`)
 }

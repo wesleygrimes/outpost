@@ -1,3 +1,4 @@
+// Package runner spawns and manages Claude Code sessions.
 package runner
 
 import (
@@ -10,94 +11,162 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
+
+	"github.com/wesgrimes/outpost/internal/store"
 )
 
+// Timing constants.
 const (
-	// ModeInteractive runs Claude Code in an attachable tmux session.
-	ModeInteractive = "interactive"
-	// ModeHeadless runs Claude Code non-interactively with --dangerously-skip-permissions.
-	ModeHeadless = "headless"
-
-	defaultMaxTurns  = 50
-	runIDBytes       = 4 // 8 hex chars, ~4 billion combinations
-	exitCodeFileName = ".outpost-exit-code"
+	DefaultMaxTurns  = 50
+	ExitCodeFileName = ".outpost-exit-code"
 	pollInterval     = 5 * time.Second
+	headlessStopWait = 5 * time.Second
 )
 
-var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+// Registry tracks headless processes for stop/signal support.
+type Registry struct {
+	mu        sync.RWMutex
+	processes map[string]*os.Process
+}
 
-// SpawnConfig configures a new Claude Code session.
+// NewRegistry creates an empty process registry.
+func NewRegistry() *Registry {
+	return &Registry{processes: make(map[string]*os.Process)}
+}
+
+func (r *Registry) add(id string, p *os.Process) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.processes[id] = p
+}
+
+func (r *Registry) remove(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.processes, id)
+}
+
+func (r *Registry) get(id string) (*os.Process, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	p, ok := r.processes[id]
+	return p, ok
+}
+
+func (r *Registry) has(id string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	_, ok := r.processes[id]
+	return ok
+}
+
+// SpawnConfig holds parameters for launching a session.
 type SpawnConfig struct {
 	RunID    string
 	RepoDir  string
 	PlanPath string
 	LogPath  string
-	Mode     string
+	Mode     store.Mode
 	MaxTurns int
 	OnExit   func(exitCode int)
+	Registry *Registry
 }
 
-// ValidateMode returns an error if mode is not a recognized value.
-func ValidateMode(mode string) error {
-	if mode != ModeInteractive && mode != ModeHeadless {
-		return fmt.Errorf("mode must be %s or %s", ModeInteractive, ModeHeadless)
+// BuildClaudeCmd constructs the claude CLI invocation string.
+func BuildClaudeCmd(cfg *SpawnConfig) string {
+	maxTurns := cfg.MaxTurns
+	if maxTurns == 0 {
+		maxTurns = DefaultMaxTurns
 	}
 
-	return nil
-}
+	var args []string
+	args = append(args, "claude")
 
-// Spawn runs Claude Code against the repo. Interactive mode uses a tmux session
-// that can be attached via SSH. Headless mode runs directly in the background.
-// OnExit is called in a goroutine when the process finishes.
-func Spawn(cfg *SpawnConfig) error {
-	claudeCmd := buildClaudeCmd(cfg)
-	exitCodeFile := filepath.Join(cfg.RepoDir, "..", exitCodeFileName)
-
-	// The wrapper script: run claude, capture output, write exit code.
-	script := fmt.Sprintf(
-		"cd %s && %s > %s 2>&1; echo $? > %s",
-		cfg.RepoDir, claudeCmd, cfg.LogPath, exitCodeFile,
-	)
-
-	if cfg.Mode == ModeInteractive {
-		return spawnInteractive(cfg, script, exitCodeFile)
-	}
-
-	return spawnHeadless(cfg, script, exitCodeFile)
-}
-
-func buildClaudeCmd(cfg *SpawnConfig) string {
-	if cfg.Mode == ModeHeadless {
-		maxTurns := cfg.MaxTurns
-		if maxTurns == 0 {
-			maxTurns = defaultMaxTurns
-		}
-
-		return fmt.Sprintf(
-			"claude -p --dangerously-skip-permissions --max-turns %d \"$(cat %s)\"",
-			maxTurns, cfg.PlanPath,
+	switch cfg.Mode {
+	case store.ModeHeadless:
+		args = append(args,
+			"--print",
+			"--dangerously-skip-permissions",
+			"--max-turns", strconv.Itoa(maxTurns),
+		)
+	case store.ModeInteractive, "":
+		args = append(args,
+			"--resume", "no",
+			"--max-turns", strconv.Itoa(maxTurns),
 		)
 	}
 
+	return strings.Join(args, " ") + fmt.Sprintf(` < %q`, cfg.PlanPath)
+}
+
+func buildWrapperScript(cfg *SpawnConfig) string {
 	return fmt.Sprintf(
-		"claude \"Read the plan at %s and execute it fully. Do not ask clarifying questions.\"",
-		cfg.PlanPath,
+		"cd %q && %s > %q 2>&1; echo $? > %q",
+		cfg.RepoDir, BuildClaudeCmd(cfg), cfg.LogPath,
+		filepath.Join(filepath.Dir(cfg.RepoDir), ExitCodeFileName),
 	)
 }
 
-func spawnHeadless(cfg *SpawnConfig, script, exitCodeFile string) error {
-	cmd := exec.Command("bash", "-c", script)
+// Spawn launches a Claude Code session in the configured mode.
+func Spawn(cfg *SpawnConfig) error {
+	switch cfg.Mode {
+	case store.ModeInteractive:
+		return spawnInteractive(cfg)
+	case store.ModeHeadless:
+		return spawnHeadless(cfg)
+	default:
+		return fmt.Errorf("unknown mode: %s", cfg.Mode)
+	}
+}
+
+func spawnInteractive(cfg *SpawnConfig) error {
+	cmd := exec.Command("tmux", "new-session", "-d", "-s", cfg.RunID, "bash", "-c", buildWrapperScript(cfg))
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("tmux new-session: %w", err)
+	}
+
+	go monitorTmux(cfg)
+	return nil
+}
+
+func monitorTmux(cfg *SpawnConfig) {
+	for {
+		time.Sleep(pollInterval)
+
+		cmd := exec.Command("tmux", "has-session", "-t", cfg.RunID)
+		if err := cmd.Run(); err != nil {
+			exitCode := readExitCode(filepath.Join(filepath.Dir(cfg.RepoDir), ExitCodeFileName))
+			if cfg.OnExit != nil {
+				cfg.OnExit(exitCode)
+			}
+			return
+		}
+	}
+}
+
+func spawnHeadless(cfg *SpawnConfig) error {
+	cmd := exec.Command("bash", "-c", buildWrapperScript(cfg))
 	cmd.Dir = cfg.RepoDir
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting headless session: %w", err)
+		return fmt.Errorf("start headless: %w", err)
+	}
+
+	if cfg.Registry != nil {
+		cfg.Registry.add(cfg.RunID, cmd.Process)
 	}
 
 	go func() {
 		_ = cmd.Wait()
 
-		exitCode := readExitCode(exitCodeFile)
+		if cfg.Registry != nil {
+			cfg.Registry.remove(cfg.RunID)
+		}
+
+		exitCode := readExitCode(filepath.Join(filepath.Dir(cfg.RepoDir), ExitCodeFileName))
 		if cfg.OnExit != nil {
 			cfg.OnExit(exitCode)
 		}
@@ -106,106 +175,81 @@ func spawnHeadless(cfg *SpawnConfig, script, exitCodeFile string) error {
 	return nil
 }
 
-func spawnInteractive(cfg *SpawnConfig, script, exitCodeFile string) error {
-	// tmux creates a detached session that the user can attach to via SSH:
-	//   ssh outpost -t 'tmux attach -t <run-id>'
-	cmd := exec.Command(
-		"tmux", "new-session", "-d", "-s", cfg.RunID,
-		"bash", "-c", script,
-	)
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("starting tmux session: %w", err)
+// Stop terminates a running session by ID and mode.
+func Stop(reg *Registry, runID string, mode store.Mode) {
+	switch mode {
+	case store.ModeInteractive:
+		_ = exec.Command("tmux", "kill-session", "-t", runID).Run()
+	case store.ModeHeadless:
+		stopHeadless(reg, runID)
 	}
-
-	// Monitor the tmux session in the background.
-	go monitorTmuxSession(cfg, exitCodeFile)
-
-	return nil
 }
 
-func monitorTmuxSession(cfg *SpawnConfig, exitCodeFile string) {
-	ticker := time.NewTicker(pollInterval)
+func stopHeadless(reg *Registry, runID string) {
+	if reg == nil {
+		return
+	}
+
+	proc, ok := reg.get(runID)
+	if !ok {
+		return
+	}
+
+	_ = proc.Signal(syscall.SIGTERM)
+
+	deadline := time.After(headlessStopWait)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		// Check if the tmux session still exists.
-		err := exec.Command("tmux", "has-session", "-t", cfg.RunID).Run()
-		if err != nil {
-			// Session is gone; process finished.
-			exitCode := readExitCode(exitCodeFile)
-			if cfg.OnExit != nil {
-				cfg.OnExit(exitCode)
+	for {
+		select {
+		case <-deadline:
+			if reg.has(runID) {
+				_ = proc.Signal(syscall.SIGKILL)
 			}
-
 			return
+		case <-ticker.C:
+			if !reg.has(runID) {
+				return
+			}
 		}
 	}
-}
-
-// Kill terminates a run session (tmux or process).
-func Kill(runID string) error {
-	// Try tmux first.
-	if err := exec.Command("tmux", "kill-session", "-t", runID).Run(); err == nil {
-		return nil
-	}
-
-	// Fall back to pkill if it was a headless process.
-	// The process doesn't have a session name, so this is best-effort.
-	return nil
-}
-
-// GenerateRunID creates a run ID like "name-20260317-143022-a1b2c3d4".
-// Name is sanitized to alphanumeric, hyphens, and underscores.
-func GenerateRunID(name string) string {
-	b := make([]byte, runIDBytes)
-	_, _ = rand.Read(b)
-
-	suffix := hex.EncodeToString(b)
-	ts := time.Now().Format("20060102-150405")
-
-	name = sanitizeName(name)
-
-	return fmt.Sprintf("%s-%s-%s", name, ts, suffix)
-}
-
-func sanitizeName(name string) string {
-	if name == "" {
-		return "run"
-	}
-
-	if validNameRe.MatchString(name) {
-		return name
-	}
-
-	// Strip invalid characters.
-	var clean strings.Builder
-
-	for _, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			clean.WriteRune(r)
-		}
-	}
-
-	if clean.Len() == 0 {
-		return "run"
-	}
-
-	return clean.String()
 }
 
 func readExitCode(path string) int {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 1
+		return -1
 	}
-
-	code, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	s := strings.TrimSpace(string(data))
+	code, err := strconv.Atoi(s)
 	if err != nil {
-		return 1
+		return -1
+	}
+	return code
+}
+
+var runIDSanitize = regexp.MustCompile(`[^a-zA-Z0-9-]`)
+
+// GenerateRunID creates a unique run identifier from a name.
+func GenerateRunID(name string) string {
+	sanitized := runIDSanitize.ReplaceAllString(name, "-")
+	if len(sanitized) > 30 {
+		sanitized = sanitized[:30]
+	}
+	sanitized = strings.Trim(sanitized, "-")
+
+	now := time.Now()
+	suffix := make([]byte, 4)
+	if _, err := rand.Read(suffix); err != nil {
+		panic("failed to generate random suffix: " + err.Error())
 	}
 
-	_ = os.Remove(path)
+	ts := now.Format("20060102-150405")
+	hexSuffix := hex.EncodeToString(suffix)
 
-	return code
+	if sanitized == "" {
+		return "run-" + ts + "-" + hexSuffix
+	}
+	return sanitized + "-" + ts + "-" + hexSuffix
 }

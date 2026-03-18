@@ -1,39 +1,71 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
+
+	"github.com/wesgrimes/outpost/internal/grpcclient"
 )
 
-// Login saves Outpost server credentials to ~/.outpost-url and ~/.outpost-token.
-func Login(args []string) {
+// Login connects to an Outpost server and saves credentials.
+func Login(args []string) error {
 	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: outpost login <url> <token>")
-		fmt.Fprintln(os.Stderr, "  url    Outpost server URL (e.g. http://10.0.0.5:7600)")
-		fmt.Fprintln(os.Stderr, "  token  Bearer token from 'outpost setup'")
-		os.Exit(1)
+		return errors.New("usage: outpost login <host:port> <token> [--ca-cert <path>]")
 	}
 
-	url := strings.TrimRight(args[0], "/")
-	token := strings.TrimSpace(args[1])
+	target := args[0]
+	token := args[1]
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fatalf("finding home directory: %v", err)
+		return fmt.Errorf("home dir: %w", err)
 	}
 
-	urlPath := filepath.Join(home, ".outpost-url")
-	tokenPath := filepath.Join(home, ".outpost-token")
-
-	if err := os.WriteFile(urlPath, []byte(url+"\n"), 0o600); err != nil {
-		fatalf("writing %s: %v", urlPath, err)
+	var caCertPath string
+	for i := 2; i < len(args)-1; i++ {
+		if args[i] == "--ca-cert" {
+			caCertPath = args[i+1]
+			break
+		}
 	}
 
-	if err := os.WriteFile(tokenPath, []byte(token+"\n"), 0o600); err != nil {
-		fatalf("writing %s: %v", tokenPath, err)
+	if err := os.WriteFile(filepath.Join(home, ".outpost-url"), []byte(target), 0o600); err != nil {
+		return fmt.Errorf("write url: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".outpost-token"), []byte(token), 0o600); err != nil {
+		return fmt.Errorf("write token: %w", err)
 	}
 
-	fmt.Printf("Credentials saved to %s and %s\n", urlPath, tokenPath)
+	if caCertPath != "" {
+		data, err := os.ReadFile(caCertPath)
+		if err != nil {
+			return fmt.Errorf("read CA cert: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(home, ".outpost-ca.pem"), data, 0o600); err != nil {
+			return fmt.Errorf("write CA cert: %w", err)
+		}
+	}
+
+	fmt.Fprint(os.Stderr, "Verifying connection... ")
+	client, err := grpcclient.Load()
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer logClose(client)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := client.HealthCheck(ctx)
+	if err != nil {
+		return fmt.Errorf("health check failed: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, status)
+	fmt.Fprintln(os.Stderr, "Credentials saved.")
+
+	return nil
 }
