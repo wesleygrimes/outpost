@@ -136,7 +136,19 @@ func printSetupSummary(cfg *config.ServerConfig) {
 }
 
 func remoteServerSetup(sshTarget string) error {
+	if err := validateSSHHost(sshTarget); err != nil {
+		return err
+	}
+
+	// Start a ControlMaster so all ssh/scp reuse one connection.
+	cleanup, err := startSSHControlMaster(sshTarget)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
 	printBoxTop("Outpost Server Setup", sshTarget)
+	printCheckItem("SSH", sshTarget+" connected")
 
 	goarch, err := detectRemoteArch(sshTarget)
 	if err != nil {
@@ -384,8 +396,94 @@ func installRemotePrereqs(sshTarget string) {
 	_, _ = sshRun(sshTarget, "command -v claude || npm install -g @anthropic-ai/claude-code")
 }
 
+// validateSSHHost checks that the target looks like an SSH config Host alias
+// (not a bare IP or FQDN), and prints a helpful snippet if not.
+func validateSSHHost(target string) error {
+	// If it contains @, a dot, or a colon, it's not a plain Host alias.
+	if strings.ContainsAny(target, "@.:") {
+		fmt.Fprintf(os.Stderr, `outpost requires an SSH config Host entry.
+
+Add this to ~/.ssh/config:
+
+    Host %s
+        HostName %s
+        User <your-user>
+        IdentityFile ~/.ssh/id_ed25519
+
+Then run: outpost server setup %s
+`, suggestAlias(target), target, suggestAlias(target))
+		return fmt.Errorf("use an SSH config Host alias, not %q", target)
+	}
+
+	// Verify the host exists in SSH config by checking connectivity.
+	out, err := exec.Command("ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", target, "true").CombinedOutput()
+	if err != nil {
+		hint := strings.TrimSpace(string(out))
+		if hint == "" {
+			hint = err.Error()
+		}
+		return fmt.Errorf("SSH to %q failed: %s\n\nCheck your ~/.ssh/config entry", target, hint)
+	}
+
+	return nil
+}
+
+// suggestAlias extracts a short alias from an IP or hostname.
+func suggestAlias(target string) string {
+	// Strip user@ prefix.
+	if i := strings.Index(target, "@"); i >= 0 {
+		target = target[i+1:]
+	}
+	// Strip port.
+	if host, _, err := net.SplitHostPort(target); err == nil {
+		target = host
+	}
+	// Use first segment of hostname.
+	if i := strings.Index(target, "."); i > 0 {
+		return target[:i]
+	}
+	return "myserver"
+}
+
+// sshControlPath returns a deterministic socket path for ControlMaster.
+func sshControlPath(target string) string {
+	return filepath.Join(os.TempDir(), "outpost-ssh-"+target+".sock")
+}
+
+// startSSHControlMaster opens a persistent SSH connection that all subsequent
+// ssh/scp calls multiplex over. Returns a cleanup function.
+func startSSHControlMaster(target string) (func(), error) {
+	sockPath := sshControlPath(target)
+
+	cmd := exec.Command("ssh",
+		"-o", "ControlMaster=yes",
+		"-o", "ControlPath="+sockPath,
+		"-o", "ControlPersist=60",
+		"-N", target,
+	)
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("start SSH control master: %w", err)
+	}
+
+	// Wait briefly for the socket to appear.
+	for range 20 {
+		if _, err := os.Stat(sockPath); err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	cleanup := func() {
+		_ = exec.Command("ssh", "-o", "ControlPath="+sockPath, "-O", "exit", target).Run()
+		_ = cmd.Wait()
+	}
+	return cleanup, nil
+}
+
 func sshRun(target, cmd string) (string, error) {
-	out, err := exec.Command("ssh", "-o", "StrictHostKeyChecking=accept-new", target, cmd).CombinedOutput()
+	sockPath := sshControlPath(target)
+	args := []string{"-o", "ControlPath=" + sockPath, target, cmd}
+	out, err := exec.Command("ssh", args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("ssh %s: %w: %s", target, err, out)
 	}
@@ -393,7 +491,9 @@ func sshRun(target, cmd string) (string, error) {
 }
 
 func scpFile(localPath, target, remotePath string) error {
-	out, err := exec.Command("scp", "-o", "StrictHostKeyChecking=accept-new", localPath, target+":"+remotePath).CombinedOutput()
+	sockPath := sshControlPath(target)
+	args := []string{"-o", "ControlPath=" + sockPath, localPath, target + ":" + remotePath}
+	out, err := exec.Command("scp", args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("scp: %w: %s", err, out)
 	}

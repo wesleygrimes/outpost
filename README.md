@@ -19,6 +19,17 @@ sudo mv bin/outpost /usr/local/bin/
 
 ## Quick Start
 
+First, add your server to `~/.ssh/config`:
+
+```
+Host myserver
+    HostName 192.168.1.20
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Then provision and connect:
+
 ```bash
 # Provision a remote server (builds, uploads, configures via SSH)
 outpost server setup myserver
