@@ -57,7 +57,7 @@ linters:
 
     gosec:
       excludes:
-        - G204  # subprocess with variable args is intentional (git, zellij)
+        - G204  # subprocess with variable args is intentional (git, tmux, claude)
         - G301  # directory permissions 0755 needed for shared access
         - G304  # file paths constructed internally
         - G306  # file permissions 0644 needed for patches/plans

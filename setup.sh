@@ -45,34 +45,19 @@ else
     echo "Node.js $(node --version) installed."
 fi
 
-# Zellij.
-if command -v zellij &>/dev/null; then
-    echo "Zellij already installed."
+# tmux (for interactive session attachment).
+if command -v tmux &>/dev/null; then
+    echo "tmux already installed."
 else
-    echo "Installing Zellij..."
-    ZELLIJ_URL=$(curl -s https://api.github.com/repos/zellij-org/zellij/releases/latest \
-        | grep 'browser_download_url.*x86_64.*linux.*musl' \
-        | head -1 \
-        | cut -d '"' -f 4)
-
-    if [ -z "$ZELLIJ_URL" ]; then
-        echo "Error: Could not determine Zellij download URL."
-        echo "Install manually: https://github.com/zellij-org/zellij/releases"
-        exit 1
-    fi
-
-    curl -sL "$ZELLIJ_URL" -o /tmp/zellij.tar.gz
-    tar -C /usr/local/bin -xzf /tmp/zellij.tar.gz zellij
-    chmod +x /usr/local/bin/zellij
-    rm /tmp/zellij.tar.gz
-    echo "Zellij installed."
+    echo "Installing tmux..."
+    apt-get install -y -qq tmux
+    echo "tmux installed."
 fi
 
 echo ""
 echo "=== Provisioning Complete ==="
 echo ""
 echo "Next steps:"
-echo "  1. Build outpost: go build -o ~/.outpost/bin/outpost ."
-echo "  2. Run setup:     ~/.outpost/bin/outpost setup"
-echo "  3. Auth Claude:   claude"
-echo "  4. Start daemon:  sudo systemctl start outpost"
+echo "  1. Run setup:     ./outpost-linux setup"
+echo "  2. Auth Claude:   claude"
+echo "  3. Start daemon:  sudo systemctl start outpost"

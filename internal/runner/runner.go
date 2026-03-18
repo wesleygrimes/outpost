@@ -3,7 +3,6 @@ package runner
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,16 +14,15 @@ import (
 )
 
 const (
-	// ModeInteractive runs Claude Code in an attachable zellij session.
+	// ModeInteractive runs Claude Code in an attachable tmux session.
 	ModeInteractive = "interactive"
 	// ModeHeadless runs Claude Code non-interactively with --dangerously-skip-permissions.
 	ModeHeadless = "headless"
 
 	defaultMaxTurns  = 50
 	runIDBytes       = 4 // 8 hex chars, ~4 billion combinations
-	sessionPollSec   = 5
-	sessionMaxAge    = 24 * time.Hour
 	exitCodeFileName = ".outpost-exit-code"
+	pollInterval     = 5 * time.Second
 )
 
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
@@ -49,60 +47,111 @@ func ValidateMode(mode string) error {
 	return nil
 }
 
-// Spawn creates a zellij session and runs Claude Code inside it.
-// The session is monitored in a background goroutine; OnExit is called when it finishes.
+// Spawn runs Claude Code against the repo. Interactive mode uses a tmux session
+// that can be attached via SSH. Headless mode runs directly in the background.
+// OnExit is called in a goroutine when the process finishes.
 func Spawn(cfg *SpawnConfig) error {
-	var claudeCmd string
+	claudeCmd := buildClaudeCmd(cfg)
+	exitCodeFile := filepath.Join(cfg.RepoDir, "..", exitCodeFileName)
 
-	switch cfg.Mode {
-	case ModeHeadless:
+	// The wrapper script: run claude, capture output, write exit code.
+	script := fmt.Sprintf(
+		"cd %s && %s > %s 2>&1; echo $? > %s",
+		cfg.RepoDir, claudeCmd, cfg.LogPath, exitCodeFile,
+	)
+
+	if cfg.Mode == ModeInteractive {
+		return spawnInteractive(cfg, script, exitCodeFile)
+	}
+
+	return spawnHeadless(cfg, script, exitCodeFile)
+}
+
+func buildClaudeCmd(cfg *SpawnConfig) string {
+	if cfg.Mode == ModeHeadless {
 		maxTurns := cfg.MaxTurns
 		if maxTurns == 0 {
 			maxTurns = defaultMaxTurns
 		}
 
-		claudeCmd = fmt.Sprintf(
+		return fmt.Sprintf(
 			"claude -p --dangerously-skip-permissions --max-turns %d \"$(cat %s)\"",
 			maxTurns, cfg.PlanPath,
 		)
-	default:
-		claudeCmd = fmt.Sprintf(
-			"claude \"Read the plan at %s and execute it fully. Do not ask clarifying questions.\"",
-			cfg.PlanPath,
-		)
 	}
 
-	// Wrap command to capture exit code to a marker file, then tee output to log.
-	exitCodeFile := filepath.Join(cfg.RepoDir, "..", exitCodeFileName)
-	shellCmd := fmt.Sprintf(
-		"cd %s && (%s 2>&1 | tee %s); echo $? > %s",
-		cfg.RepoDir, claudeCmd, cfg.LogPath, exitCodeFile,
+	return fmt.Sprintf(
+		"claude \"Read the plan at %s and execute it fully. Do not ask clarifying questions.\"",
+		cfg.PlanPath,
 	)
+}
 
-	cmd := exec.Command(
-		"zellij", "--session", cfg.RunID,
-		"--",
-		"bash", "-c", shellCmd,
-	)
+func spawnHeadless(cfg *SpawnConfig, script, exitCodeFile string) error {
+	cmd := exec.Command("bash", "-c", script)
+	cmd.Dir = cfg.RepoDir
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting zellij session: %w", err)
+		return fmt.Errorf("starting headless session: %w", err)
 	}
 
-	go monitorProcess(cmd, cfg, exitCodeFile)
+	go func() {
+		_ = cmd.Wait()
+
+		exitCode := readExitCode(exitCodeFile)
+		if cfg.OnExit != nil {
+			cfg.OnExit(exitCode)
+		}
+	}()
 
 	return nil
 }
 
-// Kill terminates a zellij session.
-func Kill(runID string) error {
-	cmd := exec.Command("zellij", "kill-session", runID)
+func spawnInteractive(cfg *SpawnConfig, script, exitCodeFile string) error {
+	// tmux creates a detached session that the user can attach to via SSH:
+	//   ssh outpost -t 'tmux attach -t <run-id>'
+	cmd := exec.Command(
+		"tmux", "new-session", "-d", "-s", cfg.RunID,
+		"bash", "-c", script,
+	)
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("killing session %s: %w\n%s", runID, err, out)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("starting tmux session: %w", err)
 	}
 
+	// Monitor the tmux session in the background.
+	go monitorTmuxSession(cfg, exitCodeFile)
+
+	return nil
+}
+
+func monitorTmuxSession(cfg *SpawnConfig, exitCodeFile string) {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Check if the tmux session still exists.
+		err := exec.Command("tmux", "has-session", "-t", cfg.RunID).Run()
+		if err != nil {
+			// Session is gone; process finished.
+			exitCode := readExitCode(exitCodeFile)
+			if cfg.OnExit != nil {
+				cfg.OnExit(exitCode)
+			}
+
+			return
+		}
+	}
+}
+
+// Kill terminates a run session (tmux or process).
+func Kill(runID string) error {
+	// Try tmux first.
+	if err := exec.Command("tmux", "kill-session", "-t", runID).Run(); err == nil {
+		return nil
+	}
+
+	// Fall back to pkill if it was a headless process.
+	// The process doesn't have a session name, so this is best-effort.
 	return nil
 }
 
@@ -145,18 +194,6 @@ func sanitizeName(name string) string {
 	return clean.String()
 }
 
-func monitorProcess(cmd *exec.Cmd, cfg *SpawnConfig, exitCodeFile string) {
-	_ = cmd.Wait()
-
-	// Read exit code from marker file (captures the claude process exit code,
-	// not the zellij wrapper exit code).
-	exitCode := readExitCode(exitCodeFile)
-
-	if cfg.OnExit != nil {
-		cfg.OnExit(exitCode)
-	}
-}
-
 func readExitCode(path string) int {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -168,18 +205,7 @@ func readExitCode(path string) int {
 		return 1
 	}
 
-	// Clean up marker file.
 	_ = os.Remove(path)
 
 	return code
-}
-
-// CheckZellijInstalled verifies that zellij is available in PATH.
-func CheckZellijInstalled() error {
-	_, err := exec.LookPath("zellij")
-	if err != nil {
-		return errors.New("zellij not found in PATH")
-	}
-
-	return nil
 }

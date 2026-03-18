@@ -58,7 +58,7 @@ func (s *Server) handleHandoff(w http.ResponseWriter, r *http.Request) {
 		Status:    store.StatusPending,
 		BaseSHA:   baseSHA,
 		CreatedAt: time.Now(),
-		Attach:    fmt.Sprintf("ssh outpost -t 'zellij attach %s'", params.runID),
+		Attach:    fmt.Sprintf("ssh outpost -t 'tmux attach -t %s'", params.runID),
 		Branch:    params.branch,
 		MaxTurns:  params.maxTurns,
 		Dir:       paths.dir,

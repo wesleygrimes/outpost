@@ -51,7 +51,7 @@ Follow these steps:
 
 6. **Report results.** If HTTP 202, parse the JSON response and report:
    - Run ID
-   - Attach command: `ssh outpost -t 'zellij attach <id>'`
+   - Attach command: `ssh outpost -t 'tmux attach -t <id>'`
    - Check status: `/outpost-status <id>`
    - Pick up when done: `/outpost-pickup <id>`
 

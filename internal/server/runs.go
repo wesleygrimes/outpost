@@ -75,12 +75,12 @@ func (s *Server) handleDeleteRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Kill the zellij session if still running.
+	// Kill the session if still running.
 	if run.Status == store.StatusRunning || run.Status == store.StatusPending {
 		capturePartialPatch(run)
 
 		// Kill session (ignore errors if already dead).
-		_ = exec.Command("zellij", "kill-session", id).Run()
+		_ = exec.Command("tmux", "kill-session", "-t", id).Run()
 	}
 
 	now := time.Now()
