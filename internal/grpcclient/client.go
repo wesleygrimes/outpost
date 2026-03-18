@@ -10,14 +10,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
 	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
+	"github.com/wesgrimes/outpost/internal/config"
 	"github.com/wesgrimes/outpost/internal/store"
 )
 
@@ -47,6 +46,18 @@ type HandoffResult struct {
 	Attach string
 }
 
+// ServerDoctorResult holds the response from a server doctor check.
+type ServerDoctorResult struct {
+	Version         string
+	Uptime          string
+	DiskFree        string
+	ClaudeInstalled bool
+	TmuxInstalled   bool
+	ActiveRuns      int32
+	MaxRuns         int32
+	TotalRuns       int32
+}
+
 // New dials the target with the given token and options.
 func New(target, token string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.NewClient(target, opts...)
@@ -60,38 +71,54 @@ func New(target, token string, opts ...grpc.DialOption) (*Client, error) {
 	}, nil
 }
 
-// Load reads credentials from ~/.outpost-url, ~/.outpost-token, ~/.outpost-ca.pem and creates a Client.
+// Load reads credentials from ~/.config/outpost/config.yaml and creates a Client.
 func Load() (*Client, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("home dir: %w", err)
-	}
-
-	target, err := readTrimmedFile(filepath.Join(home, ".outpost-url"))
-	if err != nil {
-		return nil, fmt.Errorf("read url: %w (run 'outpost login' first)", err)
-	}
-
-	token, err := readTrimmedFile(filepath.Join(home, ".outpost-token"))
-	if err != nil {
-		return nil, fmt.Errorf("read token: %w (run 'outpost login' first)", err)
-	}
-
-	dialOpts, err := TLSDialOption(filepath.Join(home, ".outpost-ca.pem"))
+	cfg, err := config.LoadClient()
 	if err != nil {
 		return nil, err
 	}
 
-	return New(target, token, dialOpts)
+	dialOpt, err := tlsDialOption(cfg.CACert)
+	if err != nil {
+		return nil, err
+	}
+
+	return New(cfg.Server, cfg.Token, dialOpt)
 }
 
 // TLSDialOption returns a gRPC dial option for TLS using the given CA cert path.
-// Falls back to insecure if the file doesn't exist.
+// Exported for use by server-local commands (e.g. runs).
 func TLSDialOption(caPath string) (grpc.DialOption, error) {
+	return tlsDialOption(caPath)
+}
+
+// tlsDialOption returns a gRPC dial option for TLS.
+// If caPath is set and the file exists, uses that CA.
+// Otherwise uses system TLS (works behind Traefik with real certs).
+func tlsDialOption(caPath string) (grpc.DialOption, error) {
+	pool, err := loadCAPool(caPath)
+	if err != nil {
+		return nil, err
+	}
+	// pool may be nil, which means use system roots.
+	return grpc.WithTransportCredentials(
+		credentials.NewTLS(&tls.Config{
+			RootCAs:    pool,
+			MinVersion: tls.VersionTLS12,
+		}),
+	), nil
+}
+
+// loadCAPool loads a custom CA pool from the given path.
+// Returns nil pool (use system roots) if caPath is empty or the file doesn't exist.
+func loadCAPool(caPath string) (*x509.CertPool, error) {
+	if caPath == "" {
+		return nil, nil //nolint:nilnil // nil pool means use system roots
+	}
 	caCert, err := os.ReadFile(caPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return grpc.WithTransportCredentials(insecure.NewCredentials()), nil
+			return nil, nil //nolint:nilnil // missing file means use system roots
 		}
 		return nil, fmt.Errorf("read CA cert: %w", err)
 	}
@@ -99,12 +126,7 @@ func TLSDialOption(caPath string) (grpc.DialOption, error) {
 	if !pool.AppendCertsFromPEM(caCert) {
 		return nil, errors.New("invalid CA certificate")
 	}
-	return grpc.WithTransportCredentials(
-		credentials.NewTLS(&tls.Config{
-			RootCAs:    pool,
-			MinVersion: tls.VersionTLS12,
-		}),
-	), nil
+	return pool, nil
 }
 
 // Close closes the underlying connection.
@@ -119,6 +141,24 @@ func (c *Client) HealthCheck(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return resp.GetStatus(), nil
+}
+
+// ServerDoctor calls the ServerDoctor RPC.
+func (c *Client) ServerDoctor(ctx context.Context) (*ServerDoctorResult, error) {
+	resp, err := c.svc.ServerDoctor(c.authCtx(ctx), &outpostv1.ServerDoctorRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return &ServerDoctorResult{
+		Version:         resp.GetVersion(),
+		Uptime:          resp.GetUptime(),
+		DiskFree:        resp.GetDiskFree(),
+		ClaudeInstalled: resp.GetClaudeInstalled(),
+		TmuxInstalled:   resp.GetTmuxInstalled(),
+		ActiveRuns:      resp.GetActiveRuns(),
+		MaxRuns:         resp.GetMaxRuns(),
+		TotalRuns:       resp.GetTotalRuns(),
+	}, nil
 }
 
 // GetRun fetches a single run by ID.
@@ -281,12 +321,4 @@ func sendArchiveChunks(stream outpostv1.OutpostService_HandoffClient, archivePat
 			return fmt.Errorf("read archive: %w", readErr)
 		}
 	}
-}
-
-func readTrimmedFile(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
 }

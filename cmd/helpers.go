@@ -1,16 +1,13 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
 	"strings"
-	"text/tabwriter"
-
-	"github.com/wesgrimes/outpost/internal/grpcclient"
-	"github.com/wesgrimes/outpost/internal/store"
 )
+
+const boxWidth = 70
 
 func logClose(c io.Closer) {
 	if err := c.Close(); err != nil {
@@ -18,49 +15,42 @@ func logClose(c io.Closer) {
 	}
 }
 
-func printRunsTable(runs []*store.Run) error {
-	if len(runs) == 0 {
-		return nil
+// Box-drawing helpers for polished CLI output.
+
+func printBoxTop(title, subtitle string) {
+	label := title
+	if subtitle != "" {
+		label = title + " \u2500\u2500 " + subtitle
 	}
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "ID\tSTATUS\tMODE\tCREATED")
-	for _, r := range runs {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.ID, r.Status, r.Mode, r.CreatedAt.Format("2006-01-02 15:04:05"))
-	}
-	return w.Flush()
+	// Top: ╭─ <label> ─...─╮
+	pad := max(boxWidth-4-len(label), 1)
+	fmt.Fprintf(os.Stderr, "\u256d\u2500 %s %s\u256e\n", label, strings.Repeat("\u2500", pad))
+	fmt.Fprintf(os.Stderr, "\u2502%s\u2502\n", strings.Repeat(" ", boxWidth-2))
 }
 
-func showRunDetail(ctx context.Context, client *grpcclient.Client, id string) error {
-	r, err := client.GetRun(ctx, id)
-	if err != nil {
-		return err
-	}
-	printRunKV(r)
-	return nil
+func printBoxBottom() {
+	fmt.Fprintf(os.Stderr, "\u2502%s\u2502\n", strings.Repeat(" ", boxWidth-2))
+	fmt.Fprintf(os.Stderr, "\u2570%s\u256f\n", strings.Repeat("\u2500", boxWidth-2))
 }
 
-func printRunKV(r *store.Run) {
-	fmt.Printf("id=%s\n", r.ID)
-	fmt.Printf("name=%s\n", r.Name)
-	fmt.Printf("status=%s\n", r.Status)
-	fmt.Printf("mode=%s\n", r.Mode)
-	fmt.Printf("branch=%s\n", r.Branch)
-	fmt.Printf("base_sha=%s\n", r.BaseSHA)
-	fmt.Printf("final_sha=%s\n", r.FinalSHA)
-	fmt.Printf("patch_ready=%t\n", r.PatchReady)
-	fmt.Printf("created_at=%s\n", r.CreatedAt.Format("2006-01-02 15:04:05"))
-	if r.FinishedAt != nil {
-		fmt.Printf("finished_at=%s\n", r.FinishedAt.Format("2006-01-02 15:04:05"))
-	}
-	if r.Attach != "" {
-		fmt.Printf("attach=%s\n", r.Attach)
-	}
+func printBoxDivider(label string) {
+	pad := max(boxWidth-4-len(label), 1)
+	fmt.Fprintf(os.Stderr, "\u251c\u2500 %s %s\u2524\n", label, strings.Repeat("\u2500", pad))
+}
 
-	if r.LogTail != "" {
-		fmt.Println()
-		fmt.Println("--- log tail ---")
-		for line := range strings.SplitSeq(r.LogTail, "\n") {
-			fmt.Println(line)
-		}
+func printBoxRow(text string) {
+	padded := text
+	visible := len(text)
+	if visible < boxWidth-4 {
+		padded = text + strings.Repeat(" ", boxWidth-4-visible)
 	}
+	fmt.Fprintf(os.Stderr, "\u2502  %s\u2502\n", padded)
+}
+
+func printCheckItem(label, value string) {
+	printBoxRow(fmt.Sprintf("\u2713  %-16s %s", label, value))
+}
+
+func printFailItem(label, value string) {
+	printBoxRow(fmt.Sprintf("\u2717  %-16s %s", label, value))
 }

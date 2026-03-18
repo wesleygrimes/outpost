@@ -67,6 +67,21 @@ message HealthCheckRequest {}
 
 message HealthCheckResponse { string status = 1; }
 
+// ---------- ServerDoctor ----------
+
+message ServerDoctorRequest {}
+
+message ServerDoctorResponse {
+  string version         = 1;
+  string uptime          = 2;
+  string disk_free       = 3;
+  bool   claude_installed = 4;
+  bool   tmux_installed   = 5;
+  int32  active_runs      = 6;
+  int32  max_runs         = 7;
+  int32  total_runs       = 8;
+}
+
 // ---------- Client streaming: Handoff ----------
 
 message HandoffRequest {
@@ -121,6 +136,7 @@ service OutpostService {
   rpc ListRuns(ListRunsRequest)       returns (ListRunsResponse);
   rpc DropRun(DropRunRequest)         returns (DropRunResponse);
   rpc CleanupRun(CleanupRunRequest)   returns (CleanupRunResponse);
+  rpc ServerDoctor(ServerDoctorRequest) returns (ServerDoctorResponse);
 
   // Client streaming
   rpc Handoff(stream HandoffRequest) returns (HandoffResponse);

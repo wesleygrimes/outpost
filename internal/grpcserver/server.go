@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,20 +28,22 @@ import (
 type Server struct {
 	outpostv1.UnimplementedOutpostServiceServer
 
-	cfg      *config.ServerConfig
-	store    *store.Store
-	grpc     *grpc.Server
-	runsDir  string
-	registry *runner.Registry
+	cfg       *config.ServerConfig
+	store     *store.Store
+	grpc      *grpc.Server
+	runsDir   string
+	registry  *runner.Registry
+	startTime time.Time
 }
 
 // New creates a gRPC server with TLS (if configured) and auth interceptors.
 func New(cfg *config.ServerConfig, st *store.Store) (*Server, error) {
 	s := &Server{
-		cfg:      cfg,
-		store:    st,
-		runsDir:  config.RunsDir(),
-		registry: runner.NewRegistry(),
+		cfg:       cfg,
+		store:     st,
+		runsDir:   config.RunsDir(),
+		registry:  runner.NewRegistry(),
+		startTime: time.Now(),
 	}
 
 	var opts []grpc.ServerOption

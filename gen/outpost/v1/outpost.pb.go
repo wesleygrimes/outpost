@@ -709,6 +709,142 @@ func (x *HealthCheckResponse) GetStatus() string {
 	return ""
 }
 
+type ServerDoctorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerDoctorRequest) Reset() {
+	*x = ServerDoctorRequest{}
+	mi := &file_outpost_v1_outpost_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerDoctorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerDoctorRequest) ProtoMessage() {}
+
+func (x *ServerDoctorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_outpost_v1_outpost_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerDoctorRequest.ProtoReflect.Descriptor instead.
+func (*ServerDoctorRequest) Descriptor() ([]byte, []int) {
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{11}
+}
+
+type ServerDoctorResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Version         string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Uptime          string                 `protobuf:"bytes,2,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	DiskFree        string                 `protobuf:"bytes,3,opt,name=disk_free,json=diskFree,proto3" json:"disk_free,omitempty"`
+	ClaudeInstalled bool                   `protobuf:"varint,4,opt,name=claude_installed,json=claudeInstalled,proto3" json:"claude_installed,omitempty"`
+	TmuxInstalled   bool                   `protobuf:"varint,5,opt,name=tmux_installed,json=tmuxInstalled,proto3" json:"tmux_installed,omitempty"`
+	ActiveRuns      int32                  `protobuf:"varint,6,opt,name=active_runs,json=activeRuns,proto3" json:"active_runs,omitempty"`
+	MaxRuns         int32                  `protobuf:"varint,7,opt,name=max_runs,json=maxRuns,proto3" json:"max_runs,omitempty"`
+	TotalRuns       int32                  `protobuf:"varint,8,opt,name=total_runs,json=totalRuns,proto3" json:"total_runs,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ServerDoctorResponse) Reset() {
+	*x = ServerDoctorResponse{}
+	mi := &file_outpost_v1_outpost_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerDoctorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerDoctorResponse) ProtoMessage() {}
+
+func (x *ServerDoctorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_outpost_v1_outpost_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerDoctorResponse.ProtoReflect.Descriptor instead.
+func (*ServerDoctorResponse) Descriptor() ([]byte, []int) {
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ServerDoctorResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ServerDoctorResponse) GetUptime() string {
+	if x != nil {
+		return x.Uptime
+	}
+	return ""
+}
+
+func (x *ServerDoctorResponse) GetDiskFree() string {
+	if x != nil {
+		return x.DiskFree
+	}
+	return ""
+}
+
+func (x *ServerDoctorResponse) GetClaudeInstalled() bool {
+	if x != nil {
+		return x.ClaudeInstalled
+	}
+	return false
+}
+
+func (x *ServerDoctorResponse) GetTmuxInstalled() bool {
+	if x != nil {
+		return x.TmuxInstalled
+	}
+	return false
+}
+
+func (x *ServerDoctorResponse) GetActiveRuns() int32 {
+	if x != nil {
+		return x.ActiveRuns
+	}
+	return 0
+}
+
+func (x *ServerDoctorResponse) GetMaxRuns() int32 {
+	if x != nil {
+		return x.MaxRuns
+	}
+	return 0
+}
+
+func (x *ServerDoctorResponse) GetTotalRuns() int32 {
+	if x != nil {
+		return x.TotalRuns
+	}
+	return 0
+}
+
 type HandoffRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Payload:
@@ -722,7 +858,7 @@ type HandoffRequest struct {
 
 func (x *HandoffRequest) Reset() {
 	*x = HandoffRequest{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[11]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -734,7 +870,7 @@ func (x *HandoffRequest) String() string {
 func (*HandoffRequest) ProtoMessage() {}
 
 func (x *HandoffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[11]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -747,7 +883,7 @@ func (x *HandoffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandoffRequest.ProtoReflect.Descriptor instead.
 func (*HandoffRequest) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{11}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *HandoffRequest) GetPayload() isHandoffRequest_Payload {
@@ -805,7 +941,7 @@ type HandoffMetadata struct {
 
 func (x *HandoffMetadata) Reset() {
 	*x = HandoffMetadata{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[12]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -817,7 +953,7 @@ func (x *HandoffMetadata) String() string {
 func (*HandoffMetadata) ProtoMessage() {}
 
 func (x *HandoffMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[12]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +966,7 @@ func (x *HandoffMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandoffMetadata.ProtoReflect.Descriptor instead.
 func (*HandoffMetadata) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{12}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HandoffMetadata) GetPlan() string {
@@ -886,7 +1022,7 @@ type HandoffResponse struct {
 
 func (x *HandoffResponse) Reset() {
 	*x = HandoffResponse{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[13]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -898,7 +1034,7 @@ func (x *HandoffResponse) String() string {
 func (*HandoffResponse) ProtoMessage() {}
 
 func (x *HandoffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[13]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -911,7 +1047,7 @@ func (x *HandoffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandoffResponse.ProtoReflect.Descriptor instead.
 func (*HandoffResponse) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{13}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HandoffResponse) GetId() string {
@@ -945,7 +1081,7 @@ type TailLogsRequest struct {
 
 func (x *TailLogsRequest) Reset() {
 	*x = TailLogsRequest{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[14]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +1093,7 @@ func (x *TailLogsRequest) String() string {
 func (*TailLogsRequest) ProtoMessage() {}
 
 func (x *TailLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[14]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +1106,7 @@ func (x *TailLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailLogsRequest.ProtoReflect.Descriptor instead.
 func (*TailLogsRequest) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{14}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TailLogsRequest) GetId() string {
@@ -996,7 +1132,7 @@ type TailLogsResponse struct {
 
 func (x *TailLogsResponse) Reset() {
 	*x = TailLogsResponse{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[15]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1008,7 +1144,7 @@ func (x *TailLogsResponse) String() string {
 func (*TailLogsResponse) ProtoMessage() {}
 
 func (x *TailLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[15]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1021,7 +1157,7 @@ func (x *TailLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailLogsResponse.ProtoReflect.Descriptor instead.
 func (*TailLogsResponse) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{15}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TailLogsResponse) GetLine() string {
@@ -1040,7 +1176,7 @@ type DownloadPatchRequest struct {
 
 func (x *DownloadPatchRequest) Reset() {
 	*x = DownloadPatchRequest{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[16]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1052,7 +1188,7 @@ func (x *DownloadPatchRequest) String() string {
 func (*DownloadPatchRequest) ProtoMessage() {}
 
 func (x *DownloadPatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[16]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1065,7 +1201,7 @@ func (x *DownloadPatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPatchRequest.ProtoReflect.Descriptor instead.
 func (*DownloadPatchRequest) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{16}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DownloadPatchRequest) GetId() string {
@@ -1084,7 +1220,7 @@ type DownloadPatchResponse struct {
 
 func (x *DownloadPatchResponse) Reset() {
 	*x = DownloadPatchResponse{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[17]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1232,7 @@ func (x *DownloadPatchResponse) String() string {
 func (*DownloadPatchResponse) ProtoMessage() {}
 
 func (x *DownloadPatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[17]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1245,7 @@ func (x *DownloadPatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPatchResponse.ProtoReflect.Descriptor instead.
 func (*DownloadPatchResponse) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{17}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DownloadPatchResponse) GetData() []byte {
@@ -1128,7 +1264,7 @@ type AttachRequest struct {
 
 func (x *AttachRequest) Reset() {
 	*x = AttachRequest{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[18]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1140,7 +1276,7 @@ func (x *AttachRequest) String() string {
 func (*AttachRequest) ProtoMessage() {}
 
 func (x *AttachRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[18]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1153,7 +1289,7 @@ func (x *AttachRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachRequest.ProtoReflect.Descriptor instead.
 func (*AttachRequest) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{18}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AttachRequest) GetData() []byte {
@@ -1172,7 +1308,7 @@ type AttachResponse struct {
 
 func (x *AttachResponse) Reset() {
 	*x = AttachResponse{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[19]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1184,7 +1320,7 @@ func (x *AttachResponse) String() string {
 func (*AttachResponse) ProtoMessage() {}
 
 func (x *AttachResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[19]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1197,7 +1333,7 @@ func (x *AttachResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachResponse.ProtoReflect.Descriptor instead.
 func (*AttachResponse) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{19}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AttachResponse) GetData() []byte {
@@ -1250,7 +1386,19 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"\x14\n" +
 	"\x12HealthCheckRequest\"-\n" +
 	"\x13HealthCheckResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\"l\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\x15\n" +
+	"\x13ServerDoctorRequest\"\x92\x02\n" +
+	"\x14ServerDoctorResponse\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12\x16\n" +
+	"\x06uptime\x18\x02 \x01(\tR\x06uptime\x12\x1b\n" +
+	"\tdisk_free\x18\x03 \x01(\tR\bdiskFree\x12)\n" +
+	"\x10claude_installed\x18\x04 \x01(\bR\x0fclaudeInstalled\x12%\n" +
+	"\x0etmux_installed\x18\x05 \x01(\bR\rtmuxInstalled\x12\x1f\n" +
+	"\vactive_runs\x18\x06 \x01(\x05R\n" +
+	"activeRuns\x12\x19\n" +
+	"\bmax_runs\x18\a \x01(\x05R\amaxRuns\x12\x1d\n" +
+	"\n" +
+	"total_runs\x18\b \x01(\x05R\ttotalRuns\"l\n" +
 	"\x0eHandoffRequest\x129\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1b.outpost.v1.HandoffMetadataH\x00R\bmetadata\x12\x14\n" +
 	"\x04data\x18\x02 \x01(\fH\x00R\x04dataB\t\n" +
@@ -1289,14 +1437,15 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\aRunMode\x12\x18\n" +
 	"\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RUN_MODE_INTERACTIVE\x10\x01\x12\x15\n" +
-	"\x11RUN_MODE_HEADLESS\x10\x022\xa5\x05\n" +
+	"\x11RUN_MODE_HEADLESS\x10\x022\xf8\x05\n" +
 	"\x0eOutpostService\x12N\n" +
 	"\vHealthCheck\x12\x1e.outpost.v1.HealthCheckRequest\x1a\x1f.outpost.v1.HealthCheckResponse\x12?\n" +
 	"\x06GetRun\x12\x19.outpost.v1.GetRunRequest\x1a\x1a.outpost.v1.GetRunResponse\x12E\n" +
 	"\bListRuns\x12\x1b.outpost.v1.ListRunsRequest\x1a\x1c.outpost.v1.ListRunsResponse\x12B\n" +
 	"\aDropRun\x12\x1a.outpost.v1.DropRunRequest\x1a\x1b.outpost.v1.DropRunResponse\x12K\n" +
 	"\n" +
-	"CleanupRun\x12\x1d.outpost.v1.CleanupRunRequest\x1a\x1e.outpost.v1.CleanupRunResponse\x12D\n" +
+	"CleanupRun\x12\x1d.outpost.v1.CleanupRunRequest\x1a\x1e.outpost.v1.CleanupRunResponse\x12Q\n" +
+	"\fServerDoctor\x12\x1f.outpost.v1.ServerDoctorRequest\x1a .outpost.v1.ServerDoctorResponse\x12D\n" +
 	"\aHandoff\x12\x1a.outpost.v1.HandoffRequest\x1a\x1b.outpost.v1.HandoffResponse(\x01\x12G\n" +
 	"\bTailLogs\x12\x1b.outpost.v1.TailLogsRequest\x1a\x1c.outpost.v1.TailLogsResponse0\x01\x12V\n" +
 	"\rDownloadPatch\x12 .outpost.v1.DownloadPatchRequest\x1a!.outpost.v1.DownloadPatchResponse0\x01\x12C\n" +
@@ -1315,7 +1464,7 @@ func file_outpost_v1_outpost_proto_rawDescGZIP() []byte {
 }
 
 var file_outpost_v1_outpost_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_outpost_v1_outpost_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_outpost_v1_outpost_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_outpost_v1_outpost_proto_goTypes = []any{
 	(RunStatus)(0),                // 0: outpost.v1.RunStatus
 	(RunMode)(0),                  // 1: outpost.v1.RunMode
@@ -1330,25 +1479,27 @@ var file_outpost_v1_outpost_proto_goTypes = []any{
 	(*CleanupRunResponse)(nil),    // 10: outpost.v1.CleanupRunResponse
 	(*HealthCheckRequest)(nil),    // 11: outpost.v1.HealthCheckRequest
 	(*HealthCheckResponse)(nil),   // 12: outpost.v1.HealthCheckResponse
-	(*HandoffRequest)(nil),        // 13: outpost.v1.HandoffRequest
-	(*HandoffMetadata)(nil),       // 14: outpost.v1.HandoffMetadata
-	(*HandoffResponse)(nil),       // 15: outpost.v1.HandoffResponse
-	(*TailLogsRequest)(nil),       // 16: outpost.v1.TailLogsRequest
-	(*TailLogsResponse)(nil),      // 17: outpost.v1.TailLogsResponse
-	(*DownloadPatchRequest)(nil),  // 18: outpost.v1.DownloadPatchRequest
-	(*DownloadPatchResponse)(nil), // 19: outpost.v1.DownloadPatchResponse
-	(*AttachRequest)(nil),         // 20: outpost.v1.AttachRequest
-	(*AttachResponse)(nil),        // 21: outpost.v1.AttachResponse
-	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
+	(*ServerDoctorRequest)(nil),   // 13: outpost.v1.ServerDoctorRequest
+	(*ServerDoctorResponse)(nil),  // 14: outpost.v1.ServerDoctorResponse
+	(*HandoffRequest)(nil),        // 15: outpost.v1.HandoffRequest
+	(*HandoffMetadata)(nil),       // 16: outpost.v1.HandoffMetadata
+	(*HandoffResponse)(nil),       // 17: outpost.v1.HandoffResponse
+	(*TailLogsRequest)(nil),       // 18: outpost.v1.TailLogsRequest
+	(*TailLogsResponse)(nil),      // 19: outpost.v1.TailLogsResponse
+	(*DownloadPatchRequest)(nil),  // 20: outpost.v1.DownloadPatchRequest
+	(*DownloadPatchResponse)(nil), // 21: outpost.v1.DownloadPatchResponse
+	(*AttachRequest)(nil),         // 22: outpost.v1.AttachRequest
+	(*AttachResponse)(nil),        // 23: outpost.v1.AttachResponse
+	(*timestamppb.Timestamp)(nil), // 24: google.protobuf.Timestamp
 }
 var file_outpost_v1_outpost_proto_depIdxs = []int32{
 	1,  // 0: outpost.v1.Run.mode:type_name -> outpost.v1.RunMode
 	0,  // 1: outpost.v1.Run.status:type_name -> outpost.v1.RunStatus
-	22, // 2: outpost.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	22, // 3: outpost.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
+	24, // 2: outpost.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	24, // 3: outpost.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: outpost.v1.GetRunResponse.run:type_name -> outpost.v1.Run
 	2,  // 5: outpost.v1.ListRunsResponse.runs:type_name -> outpost.v1.Run
-	14, // 6: outpost.v1.HandoffRequest.metadata:type_name -> outpost.v1.HandoffMetadata
+	16, // 6: outpost.v1.HandoffRequest.metadata:type_name -> outpost.v1.HandoffMetadata
 	1,  // 7: outpost.v1.HandoffMetadata.mode:type_name -> outpost.v1.RunMode
 	0,  // 8: outpost.v1.HandoffResponse.status:type_name -> outpost.v1.RunStatus
 	11, // 9: outpost.v1.OutpostService.HealthCheck:input_type -> outpost.v1.HealthCheckRequest
@@ -1356,21 +1507,23 @@ var file_outpost_v1_outpost_proto_depIdxs = []int32{
 	5,  // 11: outpost.v1.OutpostService.ListRuns:input_type -> outpost.v1.ListRunsRequest
 	7,  // 12: outpost.v1.OutpostService.DropRun:input_type -> outpost.v1.DropRunRequest
 	9,  // 13: outpost.v1.OutpostService.CleanupRun:input_type -> outpost.v1.CleanupRunRequest
-	13, // 14: outpost.v1.OutpostService.Handoff:input_type -> outpost.v1.HandoffRequest
-	16, // 15: outpost.v1.OutpostService.TailLogs:input_type -> outpost.v1.TailLogsRequest
-	18, // 16: outpost.v1.OutpostService.DownloadPatch:input_type -> outpost.v1.DownloadPatchRequest
-	20, // 17: outpost.v1.OutpostService.Attach:input_type -> outpost.v1.AttachRequest
-	12, // 18: outpost.v1.OutpostService.HealthCheck:output_type -> outpost.v1.HealthCheckResponse
-	4,  // 19: outpost.v1.OutpostService.GetRun:output_type -> outpost.v1.GetRunResponse
-	6,  // 20: outpost.v1.OutpostService.ListRuns:output_type -> outpost.v1.ListRunsResponse
-	8,  // 21: outpost.v1.OutpostService.DropRun:output_type -> outpost.v1.DropRunResponse
-	10, // 22: outpost.v1.OutpostService.CleanupRun:output_type -> outpost.v1.CleanupRunResponse
-	15, // 23: outpost.v1.OutpostService.Handoff:output_type -> outpost.v1.HandoffResponse
-	17, // 24: outpost.v1.OutpostService.TailLogs:output_type -> outpost.v1.TailLogsResponse
-	19, // 25: outpost.v1.OutpostService.DownloadPatch:output_type -> outpost.v1.DownloadPatchResponse
-	21, // 26: outpost.v1.OutpostService.Attach:output_type -> outpost.v1.AttachResponse
-	18, // [18:27] is the sub-list for method output_type
-	9,  // [9:18] is the sub-list for method input_type
+	13, // 14: outpost.v1.OutpostService.ServerDoctor:input_type -> outpost.v1.ServerDoctorRequest
+	15, // 15: outpost.v1.OutpostService.Handoff:input_type -> outpost.v1.HandoffRequest
+	18, // 16: outpost.v1.OutpostService.TailLogs:input_type -> outpost.v1.TailLogsRequest
+	20, // 17: outpost.v1.OutpostService.DownloadPatch:input_type -> outpost.v1.DownloadPatchRequest
+	22, // 18: outpost.v1.OutpostService.Attach:input_type -> outpost.v1.AttachRequest
+	12, // 19: outpost.v1.OutpostService.HealthCheck:output_type -> outpost.v1.HealthCheckResponse
+	4,  // 20: outpost.v1.OutpostService.GetRun:output_type -> outpost.v1.GetRunResponse
+	6,  // 21: outpost.v1.OutpostService.ListRuns:output_type -> outpost.v1.ListRunsResponse
+	8,  // 22: outpost.v1.OutpostService.DropRun:output_type -> outpost.v1.DropRunResponse
+	10, // 23: outpost.v1.OutpostService.CleanupRun:output_type -> outpost.v1.CleanupRunResponse
+	14, // 24: outpost.v1.OutpostService.ServerDoctor:output_type -> outpost.v1.ServerDoctorResponse
+	17, // 25: outpost.v1.OutpostService.Handoff:output_type -> outpost.v1.HandoffResponse
+	19, // 26: outpost.v1.OutpostService.TailLogs:output_type -> outpost.v1.TailLogsResponse
+	21, // 27: outpost.v1.OutpostService.DownloadPatch:output_type -> outpost.v1.DownloadPatchResponse
+	23, // 28: outpost.v1.OutpostService.Attach:output_type -> outpost.v1.AttachResponse
+	19, // [19:29] is the sub-list for method output_type
+	9,  // [9:19] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1381,7 +1534,7 @@ func file_outpost_v1_outpost_proto_init() {
 	if File_outpost_v1_outpost_proto != nil {
 		return
 	}
-	file_outpost_v1_outpost_proto_msgTypes[11].OneofWrappers = []any{
+	file_outpost_v1_outpost_proto_msgTypes[13].OneofWrappers = []any{
 		(*HandoffRequest_Metadata)(nil),
 		(*HandoffRequest_Data)(nil),
 	}
@@ -1391,7 +1544,7 @@ func file_outpost_v1_outpost_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_outpost_v1_outpost_proto_rawDesc), len(file_outpost_v1_outpost_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

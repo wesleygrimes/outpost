@@ -24,6 +24,7 @@ const (
 	OutpostService_ListRuns_FullMethodName      = "/outpost.v1.OutpostService/ListRuns"
 	OutpostService_DropRun_FullMethodName       = "/outpost.v1.OutpostService/DropRun"
 	OutpostService_CleanupRun_FullMethodName    = "/outpost.v1.OutpostService/CleanupRun"
+	OutpostService_ServerDoctor_FullMethodName  = "/outpost.v1.OutpostService/ServerDoctor"
 	OutpostService_Handoff_FullMethodName       = "/outpost.v1.OutpostService/Handoff"
 	OutpostService_TailLogs_FullMethodName      = "/outpost.v1.OutpostService/TailLogs"
 	OutpostService_DownloadPatch_FullMethodName = "/outpost.v1.OutpostService/DownloadPatch"
@@ -40,6 +41,7 @@ type OutpostServiceClient interface {
 	ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error)
 	DropRun(ctx context.Context, in *DropRunRequest, opts ...grpc.CallOption) (*DropRunResponse, error)
 	CleanupRun(ctx context.Context, in *CleanupRunRequest, opts ...grpc.CallOption) (*CleanupRunResponse, error)
+	ServerDoctor(ctx context.Context, in *ServerDoctorRequest, opts ...grpc.CallOption) (*ServerDoctorResponse, error)
 	// Client streaming
 	Handoff(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[HandoffRequest, HandoffResponse], error)
 	// Server streaming
@@ -101,6 +103,16 @@ func (c *outpostServiceClient) CleanupRun(ctx context.Context, in *CleanupRunReq
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CleanupRunResponse)
 	err := c.cc.Invoke(ctx, OutpostService_CleanupRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *outpostServiceClient) ServerDoctor(ctx context.Context, in *ServerDoctorRequest, opts ...grpc.CallOption) (*ServerDoctorResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServerDoctorResponse)
+	err := c.cc.Invoke(ctx, OutpostService_ServerDoctor_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +193,7 @@ type OutpostServiceServer interface {
 	ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error)
 	DropRun(context.Context, *DropRunRequest) (*DropRunResponse, error)
 	CleanupRun(context.Context, *CleanupRunRequest) (*CleanupRunResponse, error)
+	ServerDoctor(context.Context, *ServerDoctorRequest) (*ServerDoctorResponse, error)
 	// Client streaming
 	Handoff(grpc.ClientStreamingServer[HandoffRequest, HandoffResponse]) error
 	// Server streaming
@@ -212,6 +225,9 @@ func (UnimplementedOutpostServiceServer) DropRun(context.Context, *DropRunReques
 }
 func (UnimplementedOutpostServiceServer) CleanupRun(context.Context, *CleanupRunRequest) (*CleanupRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CleanupRun not implemented")
+}
+func (UnimplementedOutpostServiceServer) ServerDoctor(context.Context, *ServerDoctorRequest) (*ServerDoctorResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ServerDoctor not implemented")
 }
 func (UnimplementedOutpostServiceServer) Handoff(grpc.ClientStreamingServer[HandoffRequest, HandoffResponse]) error {
 	return status.Error(codes.Unimplemented, "method Handoff not implemented")
@@ -336,6 +352,24 @@ func _OutpostService_CleanupRun_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OutpostService_ServerDoctor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerDoctorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OutpostServiceServer).ServerDoctor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OutpostService_ServerDoctor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OutpostServiceServer).ServerDoctor(ctx, req.(*ServerDoctorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _OutpostService_Handoff_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(OutpostServiceServer).Handoff(&grpc.GenericServerStream[HandoffRequest, HandoffResponse]{ServerStream: stream})
 }
@@ -398,6 +432,10 @@ var OutpostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CleanupRun",
 			Handler:    _OutpostService_CleanupRun_Handler,
+		},
+		{
+			MethodName: "ServerDoctor",
+			Handler:    _OutpostService_ServerDoctor_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
