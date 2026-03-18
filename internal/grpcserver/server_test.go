@@ -245,6 +245,51 @@ func TestRemoveRun_RemovesFromStore(t *testing.T) {
 	}
 }
 
+func TestServerDoctor_ReturnsFields(t *testing.T) {
+	t.Parallel()
+	client, st := setupTestServer(t)
+
+	// Add some runs to verify counts.
+	st.Add(&store.Run{ID: "running-1", Status: store.StatusRunning, CreatedAt: time.Now()})
+	st.Add(&store.Run{ID: "done-1", Status: store.StatusComplete, CreatedAt: time.Now()})
+
+	resp, err := client.ServerDoctor(authCtx(), &outpostv1.ServerDoctorRequest{})
+	if err != nil {
+		t.Fatalf("ServerDoctor: %v", err)
+	}
+
+	if resp.GetVersion() == "" {
+		t.Error("version should not be empty")
+	}
+	if resp.GetUptime() == "" {
+		t.Error("uptime should not be empty")
+	}
+	if resp.GetActiveRuns() != 1 {
+		t.Errorf("active_runs = %d, want 1", resp.GetActiveRuns())
+	}
+	if resp.GetMaxRuns() != 3 {
+		t.Errorf("max_runs = %d, want 3", resp.GetMaxRuns())
+	}
+	if resp.GetTotalRuns() != 2 {
+		t.Errorf("total_runs = %d, want 2", resp.GetTotalRuns())
+	}
+}
+
+func TestServerDoctor_NoAuth_Rejected(t *testing.T) {
+	t.Parallel()
+	client, _ := setupTestServer(t)
+
+	_, err := client.ServerDoctor(context.Background(), &outpostv1.ServerDoctorRequest{})
+	if err == nil {
+		t.Fatal("expected error without auth")
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() != codes.Unauthenticated {
+			t.Errorf("code = %v, want Unauthenticated", s.Code())
+		}
+	}
+}
+
 func TestHandoff_DataFirst_Rejected(t *testing.T) {
 	t.Parallel()
 	client, _ := setupTestServer(t)

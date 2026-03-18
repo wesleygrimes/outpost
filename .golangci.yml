@@ -79,6 +79,16 @@ linters:
     prealloc:
       simple: true
 
+  exclusions:
+    paths:
+      - gen
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - dupl
+
 formatters:
   enable:
     - gofumpt
@@ -94,12 +104,3 @@ formatters:
 
 issues:
   max-same-issues: 0
-  exclude-dirs:
-    - gen
-
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-        - dupl
