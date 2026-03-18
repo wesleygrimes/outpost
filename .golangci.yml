@@ -1,0 +1,102 @@
+version: "2"
+
+linters:
+  default: all
+  disable:
+    - wsl            # too aggressive whitespace rules (v1 name)
+    - wsl_v5         # too aggressive whitespace rules (v2 name)
+    - depguard       # not needed, no dependency restrictions
+    - ireturn        # interfaces are fine to return
+    - exhaustruct    # not every struct field needs explicit init
+    - wrapcheck      # wrapping every error is overkill for this project
+    - varnamelen     # short var names are fine in Go
+    - nlreturn       # blank line before return is noise
+    - godot          # comment periods are optional
+    - funlen         # function length is context-dependent
+    - cyclop         # covered by gocyclo
+    - lll            # line length is handled by formatter
+    - mnd            # magic numbers are fine in context
+    - tagliatelle    # struct tag style is project-specific
+    - nonamedreturns # named returns are fine when clear
+    - testpackage    # _test package separation is optional
+    - forbidigo      # fmt.Print is fine for a CLI app
+    - noinlineerr    # inline error handling is idiomatic Go
+    - err113         # dynamic errors are fine for a CLI app
+    - noctx          # exec.CommandContext adds noise for short-lived CLI commands
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - opinionated
+
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+            - sayRepetitiveInsteadOfStutters
+        - name: var-naming
+        - name: indent-error-flow
+        - name: error-return
+        - name: error-strings
+        - name: unexported-return
+        - name: blank-imports
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+
+    gosec:
+      excludes:
+        - G204  # subprocess with variable args is intentional (git, zellij)
+        - G301  # directory permissions 0755 needed for shared access
+        - G304  # file paths constructed internally
+        - G306  # file permissions 0644 needed for patches/plans
+        - G702  # command args are internal, not user-controlled
+        - G703  # paths are constructed internally
+        - G706  # log content is internal run IDs
+
+    gocyclo:
+      min-complexity: 15
+
+    dupl:
+      threshold: 100
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+    prealloc:
+      simple: true
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - gci
+
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/wesgrimes/outpost)
+
+issues:
+  max-same-issues: 0
+
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - dupl
