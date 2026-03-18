@@ -178,11 +178,12 @@ func remoteServerSetup(sshTarget string) error {
 	// Resolve the SSH alias to an actual reachable address.
 	remoteAddr := resolveSSHHostname(sshTarget)
 
-	saveRemoteCredentials(remoteAddr, setupResult)
+	saveRemoteCredentials(sshTarget, remoteAddr, setupResult)
 	verifyRemoteConnection()
 
 	fmt.Fprintln(os.Stderr)
-	printBoxRow("  Token: " + setupResult["token"])
+	printBoxRow("  This machine is already connected.")
+	printBoxRow("")
 	printBoxRow("  To connect from another machine:")
 	printBoxRow("    outpost login " + remoteAddr + ":" + setupResult["port"] + " " + setupResult["token"])
 	printBoxBottom()
@@ -235,12 +236,12 @@ func runRemoteSetup(sshTarget string) (map[string]string, error) {
 	return result, nil
 }
 
-func saveRemoteCredentials(sshTarget string, setupResult map[string]string) {
+func saveRemoteCredentials(sshAlias, remoteAddr string, setupResult map[string]string) {
 	caPath := setupResult["ca"]
 	if caPath == "" {
 		return
 	}
-	caData, err := sshRun(sshTarget, fmt.Sprintf("cat %q", caPath))
+	caData, err := sshRun(sshAlias, fmt.Sprintf("cat %q", caPath))
 	if err != nil {
 		return
 	}
@@ -253,7 +254,7 @@ func saveRemoteCredentials(sshTarget string, setupResult map[string]string) {
 		return
 	}
 	clientCfg := &config.ClientConfig{
-		Server: sshTarget + ":" + setupResult["port"],
+		Server: remoteAddr + ":" + setupResult["port"],
 		Token:  setupResult["token"],
 		CACert: localCAPath,
 	}
