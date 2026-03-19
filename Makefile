@@ -18,7 +18,7 @@ build-release:
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/outpost-darwin-amd64 .
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/outpost-darwin-arm64 .
 
-release: build-release
+release: clean build-release
 	@if [ -z "$(GITEA_TOKEN)" ]; then echo "GITEA_TOKEN required"; exit 1; fi
 	@LATEST=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
 	if [ -z "$$LATEST" ]; then \

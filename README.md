@@ -17,6 +17,17 @@ make build
 sudo mv bin/outpost /usr/local/bin/
 ```
 
+### Claude Code Plugin
+
+The installer sets this up automatically. To install manually:
+
+```bash
+claude plugin marketplace add git.grimes.pro/wesleygrimes/outpost
+claude plugin install outpost@outpost-marketplace
+```
+
+This adds the `/outpost:handoff`, `/outpost:status`, `/outpost:logs`, `/outpost:pickup`, `/outpost:drop`, and `/outpost:watch` slash commands.
+
 ## Quick Start
 
 First, add your server to `~/.ssh/config`:
@@ -68,6 +79,9 @@ outpost pickup <run-id>
 | `outpost status` | Dashboard with active runs and history |
 | `outpost status <id>` | Single run detail |
 | `outpost status <id> --follow` | Tail logs live |
+| `outpost logs <id>` | Dump last 20 lines of log output |
+| `outpost logs <id> --tail` | Follow logs live |
+| `outpost logs <id> -n 50` | Dump last N lines |
 | `outpost pickup <id>` | Download completed patch |
 | `outpost drop <id>` | Discard a run |
 | `outpost version` | Print version |
