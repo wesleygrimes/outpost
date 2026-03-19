@@ -56,8 +56,8 @@ echo "Installed binary to ${INSTALL_DIR}/outpost"
 if command -v claude >/dev/null 2>&1; then
     claude plugin marketplace add "${GITEA_REPO}" 2>/dev/null || true
     claude plugin marketplace update outpost-marketplace 2>/dev/null || true
-    claude plugin install outpost@outpost-marketplace 2>/dev/null \
-        || claude plugin update outpost@outpost-marketplace 2>/dev/null || true
+    claude plugin install outpost@outpost-marketplace 2>/dev/null || true
+    claude plugin update outpost@outpost-marketplace 2>/dev/null || true
     echo "Installed Claude Code plugin."
 else
     echo "Claude Code CLI not found, skipping plugin install."
