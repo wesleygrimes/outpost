@@ -99,47 +99,25 @@ func printDashboard(runs []*store.Run) {
 		serverName = cfg.Server
 	}
 
-	printBoxTop("Outpost", serverName)
+	fmt.Printf("server=%s\n", serverName)
+	fmt.Printf("active=%d\n", active)
+	fmt.Printf("complete=%d\n", complete)
+	fmt.Printf("failed=%d\n", failed)
+	fmt.Printf("dropped=%d\n", dropped)
 
-	// Summary row.
-	summary := fmt.Sprintf("  Active  %d    Complete  %d    Failed  %d    Dropped  %d",
-		active, complete, failed, dropped)
-	printBoxRow(summary)
-	printBoxRow("")
-
-	// Running table.
-	if len(running) > 0 {
-		printBoxDivider("Running")
-		printBoxRow(fmt.Sprintf("  %-34s %-14s %-9s %s", "ID", "MODE", "AGE", "BRANCH"))
-		for _, r := range running {
-			age := formatAge(r.CreatedAt)
-			printBoxRow(fmt.Sprintf("  %-34s %-14s %-9s %s",
-				truncate(r.ID, 34), string(r.Mode), age, r.Branch))
-		}
-		printBoxRow("")
+	for _, r := range running {
+		fmt.Printf("\nrun=%s status=%s mode=%s branch=%s age=%s\n",
+			r.ID, r.Status, r.Mode, r.Branch, formatAge(r.CreatedAt))
 	}
 
-	// Recent table.
-	if len(recent) > 0 {
-		printBoxDivider("Recent")
-		printBoxRow(fmt.Sprintf("  %-34s %-14s %-9s %s", "ID", "STATUS", "AGE", "PATCH"))
-		for _, r := range recent {
-			age := formatAge(r.CreatedAt)
-			if r.FinishedAt != nil {
-				age = formatAge(*r.FinishedAt)
-			}
-			patch := "--"
-			if r.PatchReady {
-				patch = "ready"
-			} else if r.Status == store.StatusComplete && !r.PatchReady {
-				patch = "picked up"
-			}
-			printBoxRow(fmt.Sprintf("  %-34s %-14s %-9s %s",
-				truncate(r.ID, 34), string(r.Status), age, patch))
+	for _, r := range recent {
+		age := formatAge(r.CreatedAt)
+		if r.FinishedAt != nil {
+			age = formatAge(*r.FinishedAt)
 		}
+		fmt.Printf("\nrun=%s status=%s mode=%s branch=%s age=%s patch_ready=%t\n",
+			r.ID, r.Status, r.Mode, r.Branch, age, r.PatchReady)
 	}
-
-	printBoxBottom()
 }
 
 func formatAge(t time.Time) string {
@@ -154,13 +132,6 @@ func formatAge(t time.Time) string {
 	default:
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-1] + "\u2026"
 }
 
 func showRunDetail(ctx context.Context, client *grpcclient.Client, id string) error {

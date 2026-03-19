@@ -33,11 +33,6 @@ func printBoxBottom() {
 	fmt.Fprintf(os.Stderr, "\u2570%s\u256f\n", strings.Repeat("\u2500", boxWidth-2))
 }
 
-func printBoxDivider(label string) {
-	pad := max(boxWidth-4-len(label), 1)
-	fmt.Fprintf(os.Stderr, "\u251c\u2500 %s %s\u2524\n", label, strings.Repeat("\u2500", pad))
-}
-
 func printBoxRow(text string) {
 	padded := text
 	visible := len(text)
