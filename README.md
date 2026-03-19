@@ -22,7 +22,7 @@ sudo mv bin/outpost /usr/local/bin/
 The installer sets this up automatically. To install manually:
 
 ```bash
-claude plugin marketplace add git.grimes.pro/wesleygrimes/outpost
+claude plugin marketplace add https://git.grimes.pro/wesleygrimes/outpost.git
 claude plugin install outpost@outpost-marketplace
 ```
 

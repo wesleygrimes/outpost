@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: curl -fsSL https://git.grimes.pro/wesleygrimes/outpost/raw/branch/main/install.sh | bash
 
 REPO="https://git.grimes.pro/wesleygrimes/outpost"
-GITEA_REPO="git.grimes.pro/wesleygrimes/outpost"
+GITEA_REPO="https://git.grimes.pro/wesleygrimes/outpost.git"
 INSTALL_DIR="${HOME}/.local/bin"
 
 # --- Detect platform ---
