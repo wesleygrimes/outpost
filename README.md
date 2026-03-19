@@ -129,7 +129,36 @@ ca_cert: <optional, path to CA>
 
 ```bash
 make check    # vet + lint + test
+make ci       # check + goreleaser config validation
 make build    # local binary
 make proto    # regenerate protobuf
 make fmt      # format with gofumpt
+```
+
+## Releasing
+
+Releases are built with [GoReleaser](https://goreleaser.com) and published to Gitea.
+
+**Prerequisites:** `goreleaser` installed (`brew install goreleaser/tap/goreleaser`) and `GITEA_TOKEN` set.
+
+```bash
+make release
+```
+
+This will:
+1. Auto-increment the patch version from the latest git tag
+2. Stamp the plugin version in `.claude-plugin/marketplace.json`
+3. Commit, tag, and push
+4. Build cross-platform binaries (linux/darwin, amd64/arm64) via GoReleaser
+5. Create a Gitea release with binaries and checksums
+
+**Dry run** (builds locally, no upload):
+```bash
+goreleaser release --snapshot --clean
+```
+
+**If a release fails** after the tag is pushed but before assets upload:
+```bash
+git push --delete origin <tag> && git tag -d <tag>
+make release
 ```

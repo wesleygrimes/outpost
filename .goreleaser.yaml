@@ -1,0 +1,40 @@
+version: 2
+
+gitea_urls:
+  api: https://git.grimes.pro/api/v1/
+  download: https://git.grimes.pro
+
+release:
+  gitea:
+    owner: wesleygrimes
+    name: outpost
+
+builds:
+  - main: .
+    binary: outpost
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Tag }}
+      - -X github.com/wesgrimes/outpost/internal/grpcserver.Version={{ .Tag }}
+
+archives:
+  - formats:
+      - binary
+    name_template: "outpost-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^chore: bump plugin version"

@@ -1,6 +1,5 @@
 {
   "name": "outpost",
-  "version": "0.1.8",
   "description": "Remote Claude Code session runner. Hand off implementation plans to a remote server for execution.",
   "author": {
     "name": "Wesley Grimes"

@@ -1,8 +1,9 @@
 GOLANGCI_LINT ?= $(shell bash -c 'for p in $$(type -aP golangci-lint); do if "$$p" version 2>&1 | grep -q "^golangci-lint has version [2-9]"; then echo "$$p"; break; fi; done')
+GORELEASER   ?= $(shell command -v goreleaser 2>/dev/null)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS      := -ldflags "-s -w -X main.version=$(VERSION) -X github.com/wesgrimes/outpost/internal/grpcserver.Version=$(VERSION)"
 
-.PHONY: all build build-linux build-release release proto lint fmt vet test check clean
+.PHONY: all build build-linux build-cross release proto lint fmt vet test check ci clean
 
 all: check build
 
@@ -12,43 +13,36 @@ build:
 build-linux:
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/outpost-linux-amd64 .
 
-build-release:
+build-cross:
 	GOOS=linux  GOARCH=amd64 go build $(LDFLAGS) -o bin/outpost-linux-amd64 .
 	GOOS=linux  GOARCH=arm64 go build $(LDFLAGS) -o bin/outpost-linux-arm64 .
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/outpost-darwin-amd64 .
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/outpost-darwin-arm64 .
 
-release: clean build-release
+release:
 	@if [ -z "$(GITEA_TOKEN)" ]; then echo "GITEA_TOKEN required"; exit 1; fi
-	@LATEST=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
-	if [ -z "$$LATEST" ]; then \
-		NEXT="v0.1.0"; \
+	@if [ -z "$(GORELEASER)" ]; then echo "goreleaser not found; brew install goreleaser/tap/goreleaser"; exit 1; fi
+	@set -e; \
+	LATEST=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
+	if [ -z "$$LATEST" ]; then NEXT="v0.1.0"; \
 	else \
 		MAJOR=$$(echo $$LATEST | cut -d. -f1); \
 		MINOR=$$(echo $$LATEST | cut -d. -f2); \
 		PATCH=$$(echo $$LATEST | cut -d. -f3); \
 		NEXT="$$MAJOR.$$MINOR.$$((PATCH + 1))"; \
 	fi; \
-	echo "Releasing $$NEXT..."; \
 	SEMVER=$${NEXT#v}; \
-	sed -i'' -e "s/\"version\": \"[^\"]*\"/\"version\": \"$$SEMVER\"/" plugin/.claude-plugin/plugin.json; \
-	sed -i'' -e "s/\"version\": \"[^\"]*\"/\"version\": \"$$SEMVER\"/g" .claude-plugin/marketplace.json; \
-	git add plugin/.claude-plugin/plugin.json .claude-plugin/marketplace.json; \
+	echo "==> Stamping plugin version $$SEMVER"; \
+	sed "s/\"version\": \"[^\"]*\"/\"version\": \"$$SEMVER\"/" \
+		.claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp \
+		&& mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json; \
+	git add .claude-plugin/marketplace.json; \
 	git commit -m "chore: bump plugin version to $$SEMVER"; \
-	git tag "$$NEXT" && git push origin main "$$NEXT"; \
-	RELEASE_ID=$$(curl -sS -X POST \
-		-H "Authorization: token $(GITEA_TOKEN)" \
-		-H "Content-Type: application/json" \
-		-d "{\"tag_name\":\"$$NEXT\",\"name\":\"$$NEXT\"}" \
-		"https://git.grimes.pro/api/v1/repos/wesleygrimes/outpost/releases" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2); \
-	for f in bin/outpost-*; do \
-		echo "  $$f"; \
-		curl -sS -X POST \
-			-H "Authorization: token $(GITEA_TOKEN)" \
-			-F "attachment=@$$f" \
-			"https://git.grimes.pro/api/v1/repos/wesleygrimes/outpost/releases/$$RELEASE_ID/assets"; \
-	done; \
-	echo "Released $$NEXT"
+	echo "==> Tagging $$NEXT"; \
+	git tag "$$NEXT"; \
+	git push origin main "$$NEXT"; \
+	echo "==> Running GoReleaser"; \
+	$(GORELEASER) release --clean
 
 proto:
 	cd proto && buf lint && buf generate
@@ -67,5 +61,8 @@ test:
 
 check: vet lint test
 
+ci: check
+	goreleaser check
+
 clean:
-	rm -rf bin/
+	rm -rf bin/ dist/

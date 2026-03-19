@@ -8,7 +8,13 @@ Remote Claude Code session runner. Single Go binary with three subcommands: `set
 make check
 ```
 
-This runs `go vet` and `golangci-lint run` (v2, strict config).
+This runs `go vet`, `golangci-lint run` (v2, strict config), and tests.
+
+Full CI (includes GoReleaser config validation):
+
+```bash
+make ci
+```
 
 ## Build
 
