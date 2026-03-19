@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: curl -fsSL https://git.grimes.pro/wesleygrimes/outpost/raw/branch/main/install.sh | bash
 
 REPO="https://git.grimes.pro/wesleygrimes/outpost"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="${HOME}/.local/bin"
 
 # Detect OS and arch.
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -54,14 +54,29 @@ fi
 
 chmod +x "$TMP"
 
-# Install (may need sudo).
-if [ -w "$INSTALL_DIR" ]; then
-    mv "$TMP" "${INSTALL_DIR}/outpost"
-else
-    echo "Installing to ${INSTALL_DIR} (requires sudo)..."
-    sudo mv "$TMP" "${INSTALL_DIR}/outpost"
-fi
+mkdir -p "$INSTALL_DIR"
+mv "$TMP" "${INSTALL_DIR}/outpost"
 
 echo "Installed outpost to ${INSTALL_DIR}/outpost"
+
+# Install Claude Code slash commands.
+COMMANDS_DIR="${HOME}/.claude/commands"
+COMMANDS_BASE="${REPO}/raw/branch/main/commands"
+mkdir -p "$COMMANDS_DIR"
+for cmd in outpost outpost-drop outpost-pickup outpost-status; do
+    curl -fsSL "${COMMANDS_BASE}/${cmd}.md" -o "${COMMANDS_DIR}/${cmd}.md"
+done
+echo "Installed slash commands to ${COMMANDS_DIR}/"
 echo ""
+
+# Check if INSTALL_DIR is in PATH.
+case ":$PATH:" in
+    *":${INSTALL_DIR}:"*) ;;
+    *)
+        echo "Add ${INSTALL_DIR} to your PATH:"
+        echo "  export PATH=\"${INSTALL_DIR}:\$PATH\""
+        echo ""
+        ;;
+esac
+
 echo "Next: outpost server setup <host>"
