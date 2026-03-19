@@ -20,14 +20,30 @@ build-release:
 
 release: build-release
 	@if [ -z "$(GITEA_TOKEN)" ]; then echo "GITEA_TOKEN required"; exit 1; fi
-	@echo "Uploading $(VERSION) to Gitea..."
-	@for f in bin/outpost-*; do \
+	@LATEST=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
+	if [ -z "$$LATEST" ]; then \
+		NEXT="v0.1.0"; \
+	else \
+		MAJOR=$$(echo $$LATEST | cut -d. -f1); \
+		MINOR=$$(echo $$LATEST | cut -d. -f2); \
+		PATCH=$$(echo $$LATEST | cut -d. -f3); \
+		NEXT="$$MAJOR.$$MINOR.$$((PATCH + 1))"; \
+	fi; \
+	echo "Releasing $$NEXT..."; \
+	git tag "$$NEXT" && git push origin "$$NEXT"; \
+	RELEASE_ID=$$(curl -sS -X POST \
+		-H "Authorization: token $(GITEA_TOKEN)" \
+		-H "Content-Type: application/json" \
+		-d "{\"tag_name\":\"$$NEXT\",\"name\":\"$$NEXT\"}" \
+		"https://git.grimes.pro/api/v1/repos/wesleygrimes/outpost/releases" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2); \
+	for f in bin/outpost-*; do \
 		echo "  $$f"; \
 		curl -sS -X POST \
 			-H "Authorization: token $(GITEA_TOKEN)" \
 			-F "attachment=@$$f" \
-			"https://git.grimes.pro/api/v1/repos/wesleygrimes/outpost/releases/$(VERSION)/assets"; \
-	done
+			"https://git.grimes.pro/api/v1/repos/wesleygrimes/outpost/releases/$$RELEASE_ID/assets"; \
+	done; \
+	echo "Released $$NEXT"
 
 proto:
 	cd proto && buf lint && buf generate
