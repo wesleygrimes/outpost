@@ -30,7 +30,12 @@ release: clean build-release
 		NEXT="$$MAJOR.$$MINOR.$$((PATCH + 1))"; \
 	fi; \
 	echo "Releasing $$NEXT..."; \
-	git tag "$$NEXT" && git push origin "$$NEXT"; \
+	SEMVER=$${NEXT#v}; \
+	sed -i'' -e "s/\"version\": \"[^\"]*\"/\"version\": \"$$SEMVER\"/" plugin/.claude-plugin/plugin.json; \
+	sed -i'' -e "s/\"version\": \"[^\"]*\"/\"version\": \"$$SEMVER\"/g" .claude-plugin/marketplace.json; \
+	git add plugin/.claude-plugin/plugin.json .claude-plugin/marketplace.json; \
+	git commit -m "chore: bump plugin version to $$SEMVER"; \
+	git tag "$$NEXT" && git push origin main "$$NEXT"; \
 	RELEASE_ID=$$(curl -sS -X POST \
 		-H "Authorization: token $(GITEA_TOKEN)" \
 		-H "Content-Type: application/json" \
