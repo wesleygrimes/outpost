@@ -145,6 +145,10 @@ func spawnInteractive(cfg *SpawnConfig) error {
 		return fmt.Errorf("tmux new-session: %w", err)
 	}
 
+	// Show detach hint in the tmux status bar.
+	_ = exec.Command("tmux", "set-option", "-t", cfg.RunID,
+		"status-right", " Ctrl-B D to detach ").Run()
+
 	// Auto-accept the workspace trust dialog (Enter on pre-selected "Yes").
 	go func() {
 		time.Sleep(3 * time.Second)
