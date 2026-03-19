@@ -160,13 +160,58 @@ func (s *Server) buildRun(runID string, meta *outpostv1.HandoffMetadata, mode st
 
 	if mode == store.ModeInteractive {
 		hostname, _ := os.Hostname()
-		run.Attach = fmt.Sprintf("ssh -t %s tmux attach-session -t %s", hostname, runID)
+		if s.cfg.SSHUser != "" {
+			run.Attach = fmt.Sprintf("ssh -t %s sudo -u %s tmux attach-session -t %s", hostname, s.cfg.SSHUser, runID)
+		} else {
+			run.Attach = fmt.Sprintf("ssh -t %s tmux attach-session -t %s", hostname, runID)
+		}
 	}
 
 	return run
 }
 
+// preTrustWorkspace writes the hasTrustDialogAccepted flag to
+// ~/.claude/settings.json so the interactive trust prompt is skipped.
+func preTrustWorkspace(repoDir string) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+
+	settingsPath := filepath.Join(home, ".claude", "settings.json")
+
+	var settings map[string]any
+	if data, err := os.ReadFile(settingsPath); err == nil {
+		_ = json.Unmarshal(data, &settings)
+	}
+	if settings == nil {
+		settings = make(map[string]any)
+	}
+
+	projects, _ := settings["projects"].(map[string]any)
+	if projects == nil {
+		projects = make(map[string]any)
+	}
+
+	proj, _ := projects[repoDir].(map[string]any)
+	if proj == nil {
+		proj = make(map[string]any)
+	}
+	proj["hasTrustDialogAccepted"] = true
+	projects[repoDir] = proj
+	settings["projects"] = projects
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(settingsPath), 0o755)
+	_ = os.WriteFile(settingsPath, data, 0o600)
+}
+
 func (s *Server) spawnRun(run *store.Run, runDir, baseSHA string) error {
+	preTrustWorkspace(s.runsDir)
+
 	cfg := &runner.SpawnConfig{
 		RunID:    run.ID,
 		RepoDir:  filepath.Join(runDir, "repo"),

@@ -89,12 +89,12 @@ func BuildClaudeCmd(cfg *SpawnConfig) string {
 	case store.ModeHeadless:
 		args = append(args,
 			"--print",
-			"--dangerously-skip-permissions",
+			"--permission-mode", "bypassPermissions",
 			"--max-turns", strconv.Itoa(maxTurns),
 		)
 	case store.ModeInteractive, "":
 		args = append(args,
-			"--resume", "no",
+			"--permission-mode", "bypassPermissions",
 			"--max-turns", strconv.Itoa(maxTurns),
 		)
 	}
@@ -103,11 +103,28 @@ func BuildClaudeCmd(cfg *SpawnConfig) string {
 }
 
 func buildWrapperScript(cfg *SpawnConfig) string {
-	return fmt.Sprintf(
-		"cd %q && %s > %q 2>&1; echo $? > %q",
-		cfg.RepoDir, BuildClaudeCmd(cfg), cfg.LogPath,
-		filepath.Join(filepath.Dir(cfg.RepoDir), ExitCodeFileName),
-	)
+	exitCodePath := filepath.Join(filepath.Dir(cfg.RepoDir), ExitCodeFileName)
+
+	switch cfg.Mode {
+	case store.ModeInteractive:
+		// Interactive: run directly in the tmux PTY so the TUI renders
+		// and the pre-seeded workspace trust is respected.
+		return fmt.Sprintf(
+			"cd %q && %s; echo $? > %q",
+			cfg.RepoDir,
+			BuildClaudeCmd(cfg),
+			exitCodePath,
+		)
+	case store.ModeHeadless:
+		// Headless: redirect stdout/stderr to log file.
+		return fmt.Sprintf(
+			"cd %q && %s > %q 2>&1; echo $? > %q",
+			cfg.RepoDir, BuildClaudeCmd(cfg), cfg.LogPath,
+			exitCodePath,
+		)
+	}
+
+	panic("unreachable: unknown mode " + string(cfg.Mode))
 }
 
 // Spawn launches a Claude Code session in the configured mode.
@@ -127,6 +144,12 @@ func spawnInteractive(cfg *SpawnConfig) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("tmux new-session: %w", err)
 	}
+
+	// Auto-accept the workspace trust dialog (Enter on pre-selected "Yes").
+	go func() {
+		time.Sleep(3 * time.Second)
+		_ = exec.Command("tmux", "send-keys", "-t", cfg.RunID, "Enter").Run()
+	}()
 
 	go monitorTmux(cfg)
 	return nil

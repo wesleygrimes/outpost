@@ -17,7 +17,7 @@ import (
 // Handoff creates an archive and streams it to the Outpost server.
 func Handoff(args []string) error {
 	fs := flag.NewFlagSet("handoff", flag.ContinueOnError)
-	planPath := fs.String("plan", "", "path to plan file")
+	planPath := fs.String("plan", "", "path to plan file (required)")
 	mode := fs.String("mode", "interactive", "run mode (interactive or headless)")
 	name := fs.String("name", "", "run name")
 	branch := fs.String("branch", "", "git branch")

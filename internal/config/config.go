@@ -25,6 +25,7 @@ type ServerConfig struct {
 	Port              int    `yaml:"port"`
 	Token             string `yaml:"token"`
 	MaxConcurrentRuns int    `yaml:"max_concurrent_runs"`
+	SSHUser           string `yaml:"ssh_user"`
 	TLSCert           string `yaml:"tls_cert"`
 	TLSKey            string `yaml:"tls_key"`
 	TLSCA             string `yaml:"tls_ca"`

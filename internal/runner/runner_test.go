@@ -20,8 +20,8 @@ func TestBuildClaudeCmd_Headless(t *testing.T) {
 	if !strings.Contains(cmd, "--print") {
 		t.Error("headless should contain --print")
 	}
-	if !strings.Contains(cmd, "--dangerously-skip-permissions") {
-		t.Error("headless should contain --dangerously-skip-permissions")
+	if !strings.Contains(cmd, "--permission-mode bypassPermissions") {
+		t.Error("headless should contain --permission-mode bypassPermissions")
 	}
 	if !strings.Contains(cmd, "--max-turns 50") {
 		t.Error("should contain --max-turns 50")
@@ -46,8 +46,8 @@ func TestBuildClaudeCmd_Interactive(t *testing.T) {
 	if strings.Contains(cmd, "--print") {
 		t.Error("interactive should NOT contain --print")
 	}
-	if strings.Contains(cmd, "--dangerously-skip-permissions") {
-		t.Error("interactive should NOT contain --dangerously-skip-permissions")
+	if !strings.Contains(cmd, "--permission-mode bypassPermissions") {
+		t.Error("interactive should contain --permission-mode bypassPermissions")
 	}
 	if !strings.Contains(cmd, "--max-turns 50") {
 		t.Error("should contain --max-turns 50")

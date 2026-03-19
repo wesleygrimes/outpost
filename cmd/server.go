@@ -66,23 +66,13 @@ func localServerSetup(jsonOutput bool) error {
 		}
 	}
 
-	cfg := config.Default()
-	cfg.TLSCert = filepath.Join(tlsDir, "server.pem")
-	cfg.TLSKey = filepath.Join(tlsDir, "server-key.pem")
-	cfg.TLSCA = filepath.Join(tlsDir, "ca.pem")
-	if err := cfg.SaveTo(filepath.Join(base, "config.yaml")); err != nil {
-		return fmt.Errorf("save config: %w", err)
+	cfg, err := ensureConfigAndTLS(base, tlsDir)
+	if err != nil {
+		return err
 	}
 
 	if !jsonOutput {
 		printCheckItem("Config", filepath.Join(base, "config.yaml"))
-	}
-
-	if err := generateTLSCerts(tlsDir); err != nil {
-		return fmt.Errorf("generate TLS: %w", err)
-	}
-
-	if !jsonOutput {
 		printCheckItem("TLS certs", tlsDir)
 	}
 
@@ -109,6 +99,33 @@ func localServerSetup(jsonOutput bool) error {
 
 	printSetupSummary(cfg)
 	return nil
+}
+
+// ensureConfigAndTLS loads existing config or creates a fresh one, and
+// generates TLS certificates if they don't already exist.
+func ensureConfigAndTLS(base, tlsDir string) (*config.ServerConfig, error) {
+	configPath := filepath.Join(base, "config.yaml")
+	cfg, loadErr := config.LoadFrom(configPath)
+	if loadErr != nil || cfg.Port == 0 || cfg.Token == "" {
+		cfg = config.Default()
+		cfg.TLSCert = filepath.Join(tlsDir, "server.pem")
+		cfg.TLSKey = filepath.Join(tlsDir, "server-key.pem")
+		cfg.TLSCA = filepath.Join(tlsDir, "ca.pem")
+		if u, err := user.Current(); err == nil {
+			cfg.SSHUser = u.Username
+		}
+		if err := cfg.SaveTo(configPath); err != nil {
+			return nil, fmt.Errorf("save config: %w", err)
+		}
+	}
+
+	if _, err := os.Stat(cfg.TLSCA); os.IsNotExist(err) {
+		if err := generateTLSCerts(tlsDir); err != nil {
+			return nil, fmt.Errorf("generate TLS: %w", err)
+		}
+	}
+
+	return cfg, nil
 }
 
 func printSetupJSON(cfg *config.ServerConfig, tlsDir, base string) error {
@@ -160,6 +177,7 @@ func remoteServerSetup(sshTarget string) error {
 		return err
 	}
 
+	ensureRemoteUser(sshTarget)
 	installRemotePrereqs(sshTarget)
 	printCheckItem("Prerequisites", "tmux, node, claude")
 
@@ -169,7 +187,7 @@ func remoteServerSetup(sshTarget string) error {
 	}
 	printCheckItem("Config", setupResult["config"])
 
-	if _, err := sshRun(sshTarget, "sudo systemctl daemon-reload && sudo systemctl enable outpost && sudo systemctl restart outpost"); err != nil {
+	if err := installRemoteSystemd(sshTarget); err != nil {
 		printFailItem("Systemd", err.Error())
 	} else {
 		printCheckItem("Systemd", "outpost.service enabled and started")
@@ -224,8 +242,55 @@ func buildAndUpload(sshTarget, goarch string) error {
 	return nil
 }
 
+const serviceUser = "outpost"
+
+func ensureRemoteUser(sshTarget string) {
+	// Create a dedicated non-root user for the service.
+	_, _ = sshRun(sshTarget, fmt.Sprintf(
+		"id %s >/dev/null 2>&1 || sudo useradd -r -m -s /bin/bash %s",
+		serviceUser, serviceUser,
+	))
+	printCheckItem("User", serviceUser)
+}
+
+func installRemoteSystemd(sshTarget string) error {
+	home, err := sshRun(sshTarget, "eval echo ~"+serviceUser)
+	if err != nil {
+		return fmt.Errorf("resolve home: %w", err)
+	}
+	home = strings.TrimSpace(home)
+
+	unit := fmt.Sprintf(`[Unit]
+Description=Outpost gRPC Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%s
+ExecStart=/usr/local/bin/outpost serve
+WorkingDirectory=%s
+Environment=HOME=%s PATH=/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+`, serviceUser, home, home)
+
+	writeCmd := fmt.Sprintf("sudo tee /etc/systemd/system/outpost.service > /dev/null <<'UNIT'\n%sUNIT", unit)
+	if _, err := sshRun(sshTarget, writeCmd); err != nil {
+		return fmt.Errorf("write unit: %w", err)
+	}
+
+	if _, err := sshRun(sshTarget, "sudo systemctl daemon-reload && sudo systemctl enable outpost && sudo systemctl restart outpost"); err != nil {
+		return fmt.Errorf("systemctl: %w", err)
+	}
+	return nil
+}
+
 func runRemoteSetup(sshTarget string) (map[string]string, error) {
-	setupJSON, err := sshRun(sshTarget, "outpost server setup --json")
+	setupJSON, err := sshRun(sshTarget, fmt.Sprintf("sudo -u %s outpost server setup --json", serviceUser))
 	if err != nil {
 		return nil, fmt.Errorf("remote setup: %w", err)
 	}
