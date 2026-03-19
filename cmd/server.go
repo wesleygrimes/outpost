@@ -221,19 +221,35 @@ func detectRemoteArch(sshTarget string) (string, error) {
 	return "amd64", nil
 }
 
+const releaseBaseURL = "https://git.grimes.pro/wesleygrimes/outpost"
+
 func buildAndUpload(sshTarget, goarch string) error {
-	binPath := "/tmp/outpost-linux-" + goarch
-	buildCmd := exec.Command("go", "build", "-o", binPath, ".")
-	buildCmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+goarch)
-	buildCmd.Dir = findProjectRoot()
-	if out, err := buildCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("build: %w: %s", err, out)
+	binaryName := "outpost-linux-" + goarch
+	binPath := filepath.Join(os.TempDir(), binaryName)
+
+	// Download the release binary for the target platform.
+	latestURL := releaseBaseURL + "/releases/latest"
+	resp, err := exec.Command("curl", "-sS", "-o", "/dev/null", "-w", "%{redirect_url}", latestURL).Output()
+	if err != nil {
+		return fmt.Errorf("detect latest release: %w", err)
 	}
-	printCheckItem("Binary", "built for linux/"+goarch)
+
+	version := filepath.Base(strings.TrimSpace(string(resp)))
+	if version == "" || version == "." {
+		return errors.New("could not detect latest release version")
+	}
+
+	downloadURL := fmt.Sprintf("%s/releases/download/%s/%s", releaseBaseURL, version, binaryName)
+	dlCmd := exec.Command("curl", "-fsSL", "-o", binPath, downloadURL)
+	if out, err := dlCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("download %s: %w: %s", downloadURL, err, out)
+	}
+	printCheckItem("Binary", version+" linux/"+goarch)
 
 	if err := scpFile(binPath, sshTarget, "/tmp/outpost-upload"); err != nil {
 		return fmt.Errorf("upload: %w", err)
 	}
+	_ = os.Remove(binPath)
 
 	if _, err := sshRun(sshTarget, "sudo mv /tmp/outpost-upload /usr/local/bin/outpost && sudo chmod 755 /usr/local/bin/outpost"); err != nil {
 		return fmt.Errorf("install: %w", err)
@@ -582,23 +598,6 @@ func scpFile(localPath, target, remotePath string) error {
 		return fmt.Errorf("scp: %w: %s", err, out)
 	}
 	return nil
-}
-
-func findProjectRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "."
-		}
-		dir = parent
-	}
 }
 
 func generateTLSCerts(tlsDir string) error {
