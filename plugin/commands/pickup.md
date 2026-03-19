@@ -1,11 +1,16 @@
+---
+description: "Pick up a completed Outpost run"
+argument-hint: "<run_id>"
+---
+
 Pick up a completed Outpost run.
 
-Usage: /outpost-pickup <run_id>
+Usage: /outpost:pickup <run_id>
 
 Arguments: $ARGUMENTS
 
 A run_id is required. If not provided, tell the user to run
-`/outpost-status` first.
+`/outpost:status` first.
 
 Run:
 ```bash

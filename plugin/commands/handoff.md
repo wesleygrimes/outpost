@@ -1,6 +1,11 @@
+---
+description: "Hand off the current implementation plan to a remote Outpost server for execution"
+argument-hint: "[headless|interactive] [--name N] [--branch B] [--max-turns N]"
+---
+
 Hand off the current implementation plan to a remote Outpost server for execution.
 
-Usage: /outpost [headless|interactive] [--name N] [--branch B] [--max-turns N]
+Usage: /outpost:handoff [headless|interactive] [--name N] [--branch B] [--max-turns N]
 
 Arguments: $ARGUMENTS
 
@@ -33,5 +38,7 @@ Follow these steps:
 5. **Report results.** Parse the key=value output:
    - Run ID (from `id=...`)
    - Attach command (from `attach=...`, for interactive mode)
-   - Check status: `/outpost-status <id>`
-   - Pick up when done: `/outpost-pickup <id>`
+   - Check status: `/outpost:status <id>`
+   - View logs: `/outpost:logs <id>`
+   - Pick up when done: `/outpost:pickup <id>`
+   - Watch for completion: `/outpost:watch <id>`

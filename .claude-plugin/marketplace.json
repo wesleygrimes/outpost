@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "outpost-marketplace",
+  "version": "1.0.0",
+  "description": "Outpost plugin marketplace",
+  "owner": {
+    "name": "Wesley Grimes"
+  },
+  "plugins": [
+    {
+      "name": "outpost",
+      "description": "Remote Claude Code session runner. Hand off implementation plans to a remote server for execution.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Wesley Grimes"
+      },
+      "source": "./plugin",
+      "category": "development"
+    }
+  ]
+}

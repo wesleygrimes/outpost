@@ -5,9 +5,11 @@ set -euo pipefail
 # Usage: curl -fsSL https://git.grimes.pro/wesleygrimes/outpost/raw/branch/main/install.sh | bash
 
 REPO="https://git.grimes.pro/wesleygrimes/outpost"
+GITEA_REPO="git.grimes.pro/wesleygrimes/outpost"
 INSTALL_DIR="${HOME}/.local/bin"
 
-# Detect OS and arch.
+# --- Detect platform ---
+
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
 
@@ -15,23 +17,16 @@ case "$ARCH" in
     x86_64)  ARCH="amd64" ;;
     aarch64) ARCH="arm64" ;;
     arm64)   ARCH="arm64" ;;
-    *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
+    *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
 case "$OS" in
     linux|darwin) ;;
-    *)
-        echo "Unsupported OS: $OS"
-        exit 1
-        ;;
+    *)            echo "Unsupported OS: $OS"; exit 1 ;;
 esac
 
-BINARY="outpost-${OS}-${ARCH}"
+# --- Detect latest version ---
 
-# Get latest release tag.
 echo "Detecting latest version..."
 VERSION=$(curl -sS "${REPO}/releases/latest" -o /dev/null -w '%{redirect_url}' | grep -o '[^/]*$')
 if [ -z "$VERSION" ]; then
@@ -41,35 +36,41 @@ fi
 
 echo "Installing outpost ${VERSION} (${OS}/${ARCH})..."
 
-DOWNLOAD_URL="${REPO}/releases/download/${VERSION}/${BINARY}"
+# --- Install binary ---
 
-# Download to temp file.
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT
 
-if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP"; then
-    echo "Download failed. URL: $DOWNLOAD_URL"
+if ! curl -fsSL "${REPO}/releases/download/${VERSION}/outpost-${OS}-${ARCH}" -o "$TMP"; then
+    echo "Download failed."
     exit 1
 fi
 
 chmod +x "$TMP"
-
 mkdir -p "$INSTALL_DIR"
 mv "$TMP" "${INSTALL_DIR}/outpost"
+echo "Installed binary to ${INSTALL_DIR}/outpost"
 
-echo "Installed outpost to ${INSTALL_DIR}/outpost"
+# --- Install Claude Code plugin ---
 
-# Install Claude Code slash commands.
-COMMANDS_DIR="${HOME}/.claude/commands"
-COMMANDS_BASE="${REPO}/raw/branch/main/commands"
-mkdir -p "$COMMANDS_DIR"
-for cmd in outpost outpost-drop outpost-pickup outpost-status; do
-    curl -fsSL "${COMMANDS_BASE}/${cmd}.md" -o "${COMMANDS_DIR}/${cmd}.md"
+if command -v claude >/dev/null 2>&1; then
+    claude plugin marketplace add "${GITEA_REPO}" 2>/dev/null || true
+    claude plugin install outpost@outpost-marketplace 2>/dev/null || true
+    echo "Installed Claude Code plugin."
+else
+    echo "Claude Code CLI not found, skipping plugin install."
+    echo "Install manually: claude plugin marketplace add ${GITEA_REPO} && claude plugin install outpost@outpost-marketplace"
+fi
+
+# --- Clean up old-style slash commands ---
+
+for old in outpost outpost-drop outpost-pickup outpost-status; do
+    rm -f "${HOME}/.claude/commands/${old}.md"
 done
-echo "Installed slash commands to ${COMMANDS_DIR}/"
-echo ""
 
-# Check if INSTALL_DIR is in PATH.
+# --- PATH check ---
+
+echo ""
 case ":$PATH:" in
     *":${INSTALL_DIR}:"*) ;;
     *)

@@ -37,6 +37,8 @@ func main() {
 		err = cmd.Handoff(os.Args[2:])
 	case "status":
 		err = cmd.Status(os.Args[2:])
+	case "logs":
+		err = cmd.Logs(os.Args[2:])
 	case "pickup":
 		err = cmd.Pickup(os.Args[2:])
 	case "drop":
@@ -70,6 +72,7 @@ Client commands:
   doctor               Check client health
   handoff              Hand off work to the server
   status               Dashboard with active runs + history
+  logs <id>            Stream or dump run log output
   pickup <id>          Download completed patch
   drop <id>            Drop a run
 
