@@ -19,7 +19,7 @@ import (
 	"github.com/wesgrimes/outpost/internal/store"
 )
 
-// Handoff receives a plan and archive via client streaming, then spawns a session.
+// Handoff receives session data and archive via client streaming, then spawns a session.
 func (s *Server) Handoff(stream outpostv1.OutpostService_HandoffServer) error {
 	meta, err := s.recvHandoffMeta(stream)
 	if err != nil {
@@ -49,10 +49,6 @@ func (s *Server) Handoff(stream outpostv1.OutpostService_HandoffServer) error {
 		}
 	}()
 
-	if err := os.WriteFile(filepath.Join(runDir, "plan.md"), []byte(meta.GetPlan()), 0o644); err != nil {
-		return status.Errorf(codes.Internal, "write plan: %v", err)
-	}
-
 	if err := s.recvArchiveChunks(stream, filepath.Join(runDir, "archive.tar.gz")); err != nil {
 		return err
 	}
@@ -60,6 +56,11 @@ func (s *Server) Handoff(stream outpostv1.OutpostService_HandoffServer) error {
 	baseSHA, err := runner.Extract(filepath.Join(runDir, "archive.tar.gz"), filepath.Join(runDir, "repo"), meta.GetBranch())
 	if err != nil {
 		return status.Errorf(codes.Internal, "extract archive: %v", err)
+	}
+
+	repoDir := filepath.Join(runDir, "repo")
+	if err := writeSessionJSONL(repoDir, meta.GetSessionId(), meta.GetSessionJsonl()); err != nil {
+		return status.Errorf(codes.Internal, "write session: %v", err)
 	}
 
 	run := s.buildRun(runID, meta, mode, baseSHA, runDir)
@@ -89,8 +90,11 @@ func (s *Server) recvHandoffMeta(stream outpostv1.OutpostService_HandoffServer) 
 		return nil, status.Error(codes.InvalidArgument, "first message must be metadata")
 	}
 
-	if meta.GetPlan() == "" {
-		return nil, status.Error(codes.InvalidArgument, "plan is required")
+	if meta.GetSessionId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "session_id is required")
+	}
+	if len(meta.GetSessionJsonl()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "session_jsonl is required")
 	}
 
 	return meta, nil
@@ -144,6 +148,29 @@ func (s *Server) recvArchiveChunks(stream outpostv1.OutpostService_HandoffServer
 	}
 }
 
+// writeSessionJSONL writes the session JSONL file to the Claude projects directory
+// for the given repo, so that `claude --resume` can find it.
+func writeSessionJSONL(repoDir, sessionID string, jsonl []byte) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("user home: %w", err)
+	}
+
+	pathHash := runner.ComputePathHash(repoDir)
+	projectDir := filepath.Join(home, ".claude", "projects", pathHash)
+
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		return fmt.Errorf("create project dir: %w", err)
+	}
+
+	jsonlPath := filepath.Join(projectDir, sessionID+".jsonl")
+	if err := os.WriteFile(jsonlPath, jsonl, 0o644); err != nil {
+		return fmt.Errorf("write session jsonl: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Server) buildRun(runID string, meta *outpostv1.HandoffMetadata, mode store.Mode, baseSHA, runDir string) *store.Run {
 	run := &store.Run{
 		ID:        runID,
@@ -155,6 +182,7 @@ func (s *Server) buildRun(runID string, meta *outpostv1.HandoffMetadata, mode st
 		Branch:    meta.GetBranch(),
 		MaxTurns:  int(meta.GetMaxTurns()),
 		Subdir:    meta.GetSubdir(),
+		SessionID: meta.GetSessionId(),
 		Dir:       runDir,
 	}
 
@@ -210,17 +238,18 @@ func preTrustWorkspace(repoDir string) {
 }
 
 func (s *Server) spawnRun(run *store.Run, runDir, baseSHA string) error {
-	preTrustWorkspace(s.runsDir)
+	repoDir := filepath.Join(runDir, "repo")
+	preTrustWorkspace(repoDir)
 
 	cfg := &runner.SpawnConfig{
-		RunID:    run.ID,
-		RepoDir:  filepath.Join(runDir, "repo"),
-		PlanPath: filepath.Join(runDir, "plan.md"),
-		LogPath:  filepath.Join(runDir, "output.log"),
-		Mode:     run.Mode,
-		MaxTurns: run.MaxTurns,
-		OnExit:   s.makeOnExit(run.ID, runDir, baseSHA),
-		Registry: s.registry,
+		RunID:     run.ID,
+		RepoDir:   repoDir,
+		SessionID: run.SessionID,
+		LogPath:   filepath.Join(runDir, "output.log"),
+		Mode:      run.Mode,
+		MaxTurns:  run.MaxTurns,
+		OnExit:    s.makeOnExit(run.ID, runDir, baseSHA, run.SessionID),
+		Registry:  s.registry,
 	}
 
 	if err := runner.Spawn(cfg); err != nil {
@@ -239,12 +268,18 @@ func (s *Server) spawnRun(run *store.Run, runDir, baseSHA string) error {
 	return nil
 }
 
-func (s *Server) makeOnExit(runID, runDir, baseSHA string) func(int) {
+func (s *Server) makeOnExit(runID, runDir, baseSHA, sessionID string) func(int) {
 	repoDir := filepath.Join(runDir, "repo")
 	logPath := filepath.Join(runDir, "output.log")
 	patchPath := filepath.Join(runDir, "result.patch")
 
 	return func(exitCode int) {
+		// If the run is being converted to a different mode, skip finalization.
+		// The ConvertMode handler will re-spawn with a new OnExit.
+		if r, err := s.store.Get(runID); err == nil && r.Converting {
+			return
+		}
+
 		_ = runner.GeneratePatch(repoDir, baseSHA, patchPath)
 
 		finalSHA, _ := runner.GitHeadSHA(repoDir)
@@ -260,6 +295,16 @@ func (s *Server) makeOnExit(runID, runDir, baseSHA string) func(int) {
 			patchReady = true
 		}
 
+		// Discover the forked session created by --fork-session.
+		var forkedSessionID string
+		var sessionReady bool
+		if sessionID != "" {
+			if fid, err := runner.FindForkedSession(repoDir, sessionID); err == nil {
+				forkedSessionID = fid
+				sessionReady = true
+			}
+		}
+
 		now := time.Now()
 		_ = s.store.Update(runID, func(r *store.Run) {
 			r.Status = st
@@ -267,6 +312,8 @@ func (s *Server) makeOnExit(runID, runDir, baseSHA string) func(int) {
 			r.FinishedAt = &now
 			r.LogTail = store.StripANSI(logTail)
 			r.PatchReady = patchReady
+			r.ForkedSessionID = forkedSessionID
+			r.SessionReady = sessionReady
 		})
 	}
 }

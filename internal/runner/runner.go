@@ -65,23 +65,38 @@ func (r *Registry) has(id string) bool {
 
 // SpawnConfig holds parameters for launching a session.
 type SpawnConfig struct {
-	RunID    string
-	RepoDir  string
-	PlanPath string
-	LogPath  string
-	Mode     store.Mode
-	MaxTurns int
-	OnExit   func(exitCode int)
-	Registry *Registry
+	RunID     string
+	RepoDir   string
+	PlanPath  string
+	SessionID string // Claude session UUID to resume (mutually exclusive with PlanPath)
+	Continue  bool   // Use --continue to resume the most recent session (for mode conversion)
+	LogPath   string
+	Mode      store.Mode
+	MaxTurns  int
+	OnExit    func(exitCode int)
+	Registry  *Registry
 }
 
 // BuildClaudeCmd constructs the claude CLI invocation string.
+// Priority: Continue > SessionID > PlanPath.
 func BuildClaudeCmd(cfg *SpawnConfig) string {
 	maxTurns := cfg.MaxTurns
 	if maxTurns == 0 {
 		maxTurns = DefaultMaxTurns
 	}
 
+	if cfg.Continue {
+		return buildContinueCmd(cfg, maxTurns)
+	}
+
+	if cfg.SessionID != "" {
+		return buildResumeCmd(cfg, maxTurns)
+	}
+
+	return buildPlanCmd(cfg, maxTurns)
+}
+
+func buildPlanCmd(cfg *SpawnConfig, maxTurns int) string {
 	var args []string
 	args = append(args, "claude")
 
@@ -102,8 +117,53 @@ func BuildClaudeCmd(cfg *SpawnConfig) string {
 	return strings.Join(args, " ") + fmt.Sprintf(` < %q`, cfg.PlanPath)
 }
 
+func buildResumeCmd(cfg *SpawnConfig, maxTurns int) string {
+	switch cfg.Mode {
+	case store.ModeHeadless:
+		// Two-phase: compact, then work
+		compact := fmt.Sprintf(
+			"claude --resume %s --fork-session -p %q --permission-mode bypassPermissions",
+			cfg.SessionID,
+			"/compact focus on the current task and next steps",
+		)
+		work := fmt.Sprintf(
+			"claude --continue -p %q --permission-mode bypassPermissions --max-turns %d",
+			"Continue working. Full conversation context preserved via session handoff.",
+			maxTurns,
+		)
+		return compact + " && " + work
+
+	case store.ModeInteractive, "":
+		return fmt.Sprintf(
+			"claude --resume %s --fork-session --permission-mode bypassPermissions --max-turns %d",
+			cfg.SessionID, maxTurns,
+		)
+	}
+
+	panic("unreachable: unknown mode " + string(cfg.Mode))
+}
+
+func buildContinueCmd(cfg *SpawnConfig, maxTurns int) string {
+	switch cfg.Mode {
+	case store.ModeHeadless:
+		return fmt.Sprintf(
+			"claude --continue -p %q --permission-mode bypassPermissions --max-turns %d",
+			"Continue working. Mode converted to headless.",
+			maxTurns,
+		)
+	case store.ModeInteractive, "":
+		return fmt.Sprintf(
+			"claude --continue --permission-mode bypassPermissions --max-turns %d",
+			maxTurns,
+		)
+	}
+
+	panic("unreachable: unknown mode " + string(cfg.Mode))
+}
+
 func buildWrapperScript(cfg *SpawnConfig) string {
 	exitCodePath := filepath.Join(filepath.Dir(cfg.RepoDir), ExitCodeFileName)
+	claudeCmd := BuildClaudeCmd(cfg)
 
 	switch cfg.Mode {
 	case store.ModeInteractive:
@@ -112,14 +172,14 @@ func buildWrapperScript(cfg *SpawnConfig) string {
 		return fmt.Sprintf(
 			"cd %q && %s; echo $? > %q",
 			cfg.RepoDir,
-			BuildClaudeCmd(cfg),
+			claudeCmd,
 			exitCodePath,
 		)
 	case store.ModeHeadless:
 		// Headless: redirect stdout/stderr to log file.
 		return fmt.Sprintf(
 			"cd %q && %s > %q 2>&1; echo $? > %q",
-			cfg.RepoDir, BuildClaudeCmd(cfg), cfg.LogPath,
+			cfg.RepoDir, claudeCmd, cfg.LogPath,
 			exitCodePath,
 		)
 	}
@@ -254,6 +314,61 @@ func readExitCode(path string) int {
 		return -1
 	}
 	return code
+}
+
+// ComputePathHash converts an absolute directory path to the Claude projects
+// path hash format: slashes and dots become dashes.
+// e.g. /home/outpost/.outpost/runs/abc/repo -> -home-outpost-.outpost-runs-abc-repo
+func ComputePathHash(dir string) string {
+	return strings.ReplaceAll(dir, string(filepath.Separator), "-")
+}
+
+// FindForkedSession scans the Claude projects directory for a forked session
+// JSONL file. It returns the session ID of the newest JSONL file that isn't
+// the original session ID.
+func FindForkedSession(repoDir, originalSessionID string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("user home: %w", err)
+	}
+
+	pathHash := ComputePathHash(repoDir)
+	projectDir := filepath.Join(home, ".claude", "projects", pathHash)
+
+	entries, err := os.ReadDir(projectDir)
+	if err != nil {
+		return "", fmt.Errorf("read project dir: %w", err)
+	}
+
+	var newestID string
+	var newestTime time.Time
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") {
+			continue
+		}
+
+		sessionID := strings.TrimSuffix(e.Name(), ".jsonl")
+		if sessionID == originalSessionID {
+			continue
+		}
+
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+
+		if newestID == "" || info.ModTime().After(newestTime) {
+			newestID = sessionID
+			newestTime = info.ModTime()
+		}
+	}
+
+	if newestID == "" {
+		return "", fmt.Errorf("no forked session found in %s", projectDir)
+	}
+
+	return newestID, nil
 }
 
 var runIDSanitize = regexp.MustCompile(`[^a-zA-Z0-9-]`)

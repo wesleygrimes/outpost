@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/wesgrimes/outpost/internal/grpcclient"
@@ -17,7 +18,7 @@ import (
 // Handoff creates an archive and streams it to the Outpost server.
 func Handoff(args []string) error {
 	fs := flag.NewFlagSet("handoff", flag.ContinueOnError)
-	planPath := fs.String("plan", "", "path to plan file (required)")
+	sessionID := fs.String("session-id", "", "Claude session UUID to resume (required)")
 	mode := fs.String("mode", "interactive", "run mode (interactive or headless)")
 	name := fs.String("name", "", "run name")
 	branch := fs.String("branch", "", "git branch")
@@ -28,13 +29,13 @@ func Handoff(args []string) error {
 		return err
 	}
 
-	if *planPath == "" {
-		return errors.New("--plan is required")
+	if *sessionID == "" {
+		return errors.New("--session-id is required")
 	}
 
-	plan, err := os.ReadFile(*planPath)
+	sessionJSONL, err := readSessionJSONL(*sessionID)
 	if err != nil {
-		return fmt.Errorf("read plan: %w", err)
+		return fmt.Errorf("read session: %w", err)
 	}
 
 	archivePath, err := createArchive()
@@ -50,12 +51,13 @@ func Handoff(args []string) error {
 	defer logClose(client)
 
 	result, err := client.Handoff(context.Background(), archivePath, &grpcclient.HandoffMeta{
-		Plan:     string(plan),
-		Mode:     store.ModeToProto(store.Mode(*mode)),
-		Name:     *name,
-		Branch:   *branch,
-		MaxTurns: int32(*maxTurns),
-		Subdir:   *subdir,
+		SessionID:    *sessionID,
+		SessionJSONL: sessionJSONL,
+		Mode:         store.ModeToProto(store.Mode(*mode)),
+		Name:         *name,
+		Branch:       *branch,
+		MaxTurns:     int32(*maxTurns),
+		Subdir:       *subdir,
 	}, func(sent, total int64) {
 		fmt.Fprintf(os.Stderr, "\ruploading... %s / %s",
 			formatMB(sent), formatMB(total))
@@ -73,6 +75,30 @@ func Handoff(args []string) error {
 	}
 
 	return nil
+}
+
+// readSessionJSONL finds and reads the session JSONL file from the Claude
+// projects directory for the current working directory.
+func readSessionJSONL(sessionID string) ([]byte, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("getwd: %w", err)
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("user home: %w", err)
+	}
+
+	pathHash := runner.ComputePathHash(cwd)
+	jsonlPath := filepath.Join(home, ".claude", "projects", pathHash, sessionID+".jsonl")
+
+	data, err := os.ReadFile(jsonlPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", jsonlPath, err)
+	}
+
+	return data, nil
 }
 
 func formatMB(b int64) string {

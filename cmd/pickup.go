@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesgrimes/outpost/internal/runner"
 )
 
 // Pickup downloads a completed patch and cleans up the remote run.
@@ -54,9 +55,37 @@ func Pickup(args []string) error {
 	diffStat.Stderr = os.Stderr
 	_ = diffStat.Run()
 
+	// Download forked session JSONL if available.
+	if r.SessionReady && r.ForkedSessionID != "" {
+		if err := downloadSession(ctx, client, id, r.ForkedSessionID); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: session download failed: %v\n", err)
+		} else {
+			fmt.Printf("session=%s\n", r.ForkedSessionID)
+		}
+	}
+
 	if err := client.CleanupRun(ctx, id); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: cleanup failed: %v\n", err)
 	}
 
 	return nil
+}
+
+// downloadSession downloads the forked session JSONL to the local Claude
+// projects directory so the user can `claude --resume <id>`.
+func downloadSession(ctx context.Context, client *grpcclient.Client, runID, forkedSessionID string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getwd: %w", err)
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("user home: %w", err)
+	}
+
+	pathHash := runner.ComputePathHash(cwd)
+	destPath := filepath.Join(home, ".claude", "projects", pathHash, forkedSessionID+".jsonl")
+
+	return client.DownloadSession(ctx, runID, destPath)
 }

@@ -13,20 +13,23 @@ func TestRunToProto_RoundTrip(t *testing.T) {
 	finished := now.Add(5 * time.Minute)
 
 	original := &Run{
-		ID:         "test-123",
-		Name:       "my run",
-		Mode:       ModeHeadless,
-		Status:     StatusComplete,
-		BaseSHA:    "abc123",
-		FinalSHA:   "def456",
-		CreatedAt:  now,
-		FinishedAt: &finished,
-		Attach:     "ssh -t host tmux attach",
-		LogTail:    "last line",
-		PatchReady: true,
-		Branch:     "fix/auth",
-		MaxTurns:   25,
-		Subdir:     "packages/core",
+		ID:              "test-123",
+		Name:            "my run",
+		Mode:            ModeHeadless,
+		Status:          StatusComplete,
+		BaseSHA:         "abc123",
+		FinalSHA:        "def456",
+		CreatedAt:       now,
+		FinishedAt:      &finished,
+		Attach:          "ssh -t host tmux attach",
+		LogTail:         "last line",
+		PatchReady:      true,
+		Branch:          "fix/auth",
+		MaxTurns:        25,
+		Subdir:          "packages/core",
+		SessionID:       "sess-abc-123",
+		ForkedSessionID: "sess-def-456",
+		SessionReady:    true,
 	}
 
 	proto := RunToProto(original)
@@ -58,6 +61,15 @@ func TestRunToProto_RoundTrip(t *testing.T) {
 	}
 	if roundTripped.Subdir != original.Subdir {
 		t.Errorf("Subdir: got %q, want %q", roundTripped.Subdir, original.Subdir)
+	}
+	if roundTripped.SessionID != original.SessionID {
+		t.Errorf("SessionID: got %q, want %q", roundTripped.SessionID, original.SessionID)
+	}
+	if roundTripped.ForkedSessionID != original.ForkedSessionID {
+		t.Errorf("ForkedSessionID: got %q, want %q", roundTripped.ForkedSessionID, original.ForkedSessionID)
+	}
+	if roundTripped.SessionReady != original.SessionReady {
+		t.Errorf("SessionReady: got %v, want %v", roundTripped.SessionReady, original.SessionReady)
 	}
 	if roundTripped.FinishedAt == nil {
 		t.Fatal("FinishedAt is nil after round-trip")

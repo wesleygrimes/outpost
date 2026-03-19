@@ -31,12 +31,13 @@ type Client struct {
 
 // HandoffMeta holds metadata for a handoff request.
 type HandoffMeta struct {
-	Plan     string
-	Mode     outpostv1.RunMode
-	Name     string
-	Branch   string
-	MaxTurns int32
-	Subdir   string
+	SessionID    string
+	SessionJSONL []byte
+	Mode         outpostv1.RunMode
+	Name         string
+	Branch       string
+	MaxTurns     int32
+	Subdir       string
 }
 
 // HandoffResult holds the response from a handoff.
@@ -83,7 +84,7 @@ func Load() (*Client, error) {
 		return nil, err
 	}
 
-	return New(cfg.Server, cfg.Token, dialOpt)
+	return New(cfg.Server, cfg.Token, dialOpt, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(64<<20)))
 }
 
 // TLSDialOption returns a gRPC dial option for TLS using the given CA cert path.
@@ -183,6 +184,18 @@ func (c *Client) ListRuns(ctx context.Context) ([]*store.Run, error) {
 	return runs, nil
 }
 
+// ConvertMode changes a running session between interactive and headless.
+func (c *Client) ConvertMode(ctx context.Context, id string, targetMode outpostv1.RunMode) (*store.Run, error) {
+	resp, err := c.svc.ConvertMode(c.authCtx(ctx), &outpostv1.ConvertModeRequest{
+		Id:         id,
+		TargetMode: targetMode,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return store.ProtoToRun(resp.GetRun()), nil
+}
+
 // DropRun stops and discards a run.
 func (c *Client) DropRun(ctx context.Context, id string) (string, error) {
 	resp, err := c.svc.DropRun(c.authCtx(ctx), &outpostv1.DropRunRequest{Id: id})
@@ -208,12 +221,13 @@ func (c *Client) Handoff(ctx context.Context, archivePath string, meta *HandoffM
 	if err := stream.Send(&outpostv1.HandoffRequest{
 		Payload: &outpostv1.HandoffRequest_Metadata{
 			Metadata: &outpostv1.HandoffMetadata{
-				Plan:     meta.Plan,
-				Mode:     meta.Mode,
-				Name:     meta.Name,
-				Branch:   meta.Branch,
-				MaxTurns: meta.MaxTurns,
-				Subdir:   meta.Subdir,
+				SessionId:    meta.SessionID,
+				SessionJsonl: meta.SessionJSONL,
+				Mode:         meta.Mode,
+				Name:         meta.Name,
+				Branch:       meta.Branch,
+				MaxTurns:     meta.MaxTurns,
+				Subdir:       meta.Subdir,
 			},
 		},
 	}); err != nil {
@@ -244,13 +258,9 @@ func (c *Client) TailLogs(ctx context.Context, id string, follow bool) (outpostv
 	})
 }
 
-// DownloadPatch downloads a patch to destPath.
-func (c *Client) DownloadPatch(ctx context.Context, id, destPath string) error {
-	stream, err := c.svc.DownloadPatch(c.authCtx(ctx), &outpostv1.DownloadPatchRequest{Id: id})
-	if err != nil {
-		return fmt.Errorf("open stream: %w", err)
-	}
-
+// downloadToFile writes streamed byte chunks to destPath.
+// recvFunc should call Recv on the stream and return the data bytes.
+func downloadToFile(destPath string, recvFunc func() ([]byte, error)) error {
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return fmt.Errorf("create dir: %w", err)
 	}
@@ -268,17 +278,47 @@ func (c *Client) DownloadPatch(ctx context.Context, id, destPath string) error {
 	}()
 
 	for {
-		chunk, recvErr := stream.Recv()
+		data, recvErr := recvFunc()
 		if errors.Is(recvErr, io.EOF) {
 			return writeErr
 		}
 		if recvErr != nil {
 			return fmt.Errorf("recv chunk: %w", recvErr)
 		}
-		if _, err := f.Write(chunk.GetData()); err != nil {
+		if _, err := f.Write(data); err != nil {
 			return fmt.Errorf("write chunk: %w", err)
 		}
 	}
+}
+
+// DownloadPatch downloads a patch to destPath.
+func (c *Client) DownloadPatch(ctx context.Context, id, destPath string) error {
+	stream, err := c.svc.DownloadPatch(c.authCtx(ctx), &outpostv1.DownloadPatchRequest{Id: id})
+	if err != nil {
+		return fmt.Errorf("open stream: %w", err)
+	}
+	return downloadToFile(destPath, func() ([]byte, error) {
+		chunk, err := stream.Recv()
+		if err != nil {
+			return nil, err
+		}
+		return chunk.GetData(), nil
+	})
+}
+
+// DownloadSession downloads a forked session JSONL to destPath.
+func (c *Client) DownloadSession(ctx context.Context, id, destPath string) error {
+	stream, err := c.svc.DownloadSession(c.authCtx(ctx), &outpostv1.DownloadSessionRequest{Id: id})
+	if err != nil {
+		return fmt.Errorf("open stream: %w", err)
+	}
+	return downloadToFile(destPath, func() ([]byte, error) {
+		chunk, err := stream.Recv()
+		if err != nil {
+			return nil, err
+		}
+		return chunk.GetData(), nil
+	})
 }
 
 func (c *Client) authCtx(ctx context.Context) context.Context {

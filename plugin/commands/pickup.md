@@ -29,6 +29,9 @@ Follow these steps in order:
    If the command fails (no patch ready, run still running, etc.), show the
    error and suggest `/outpost:status <id>` or `/outpost:logs <id>`.
 
+   Also check the output for a `session=<id>` line. If present, the remote
+   conversation has been downloaded and can be resumed locally.
+
 3. **Apply the patch.** Run:
    ```bash
    git apply <patch_path>
@@ -46,5 +49,7 @@ Follow these steps in order:
    `git add -A`). Write a conventional commit message based on what the
    patch changed. Commit the changes.
 
-6. **Report.** Show the commit hash, summary of changes, and suggest
-   next steps (push, create PR, etc.).
+6. **Report.** Show the commit hash, summary of changes. If a session ID
+   was returned, inform the user they can resume the remote conversation
+   with `claude --resume <session-id>` to continue with full context.
+   Suggest next steps (push, create PR, etc.).

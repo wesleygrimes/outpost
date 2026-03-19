@@ -323,19 +323,28 @@ func TestHandoff_InvalidMetadata_Rejected(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		plan string
-		mode outpostv1.RunMode
+		name         string
+		sessionID    string
+		sessionJSONL []byte
+		mode         outpostv1.RunMode
 	}{
 		{
-			name: "EmptyPlan",
-			plan: "",
-			mode: outpostv1.RunMode_RUN_MODE_HEADLESS,
+			name:         "EmptySessionID",
+			sessionID:    "",
+			sessionJSONL: []byte("data"),
+			mode:         outpostv1.RunMode_RUN_MODE_HEADLESS,
 		},
 		{
-			name: "InvalidMode",
-			plan: "do something",
-			mode: outpostv1.RunMode_RUN_MODE_UNSPECIFIED,
+			name:         "EmptySessionJSONL",
+			sessionID:    "abc-123",
+			sessionJSONL: nil,
+			mode:         outpostv1.RunMode_RUN_MODE_HEADLESS,
+		},
+		{
+			name:         "InvalidMode",
+			sessionID:    "abc-123",
+			sessionJSONL: []byte("data"),
+			mode:         outpostv1.RunMode_RUN_MODE_UNSPECIFIED,
 		},
 	}
 
@@ -352,8 +361,9 @@ func TestHandoff_InvalidMetadata_Rejected(t *testing.T) {
 			_ = stream.Send(&outpostv1.HandoffRequest{
 				Payload: &outpostv1.HandoffRequest_Metadata{
 					Metadata: &outpostv1.HandoffMetadata{
-						Plan: tt.plan,
-						Mode: tt.mode,
+						SessionId:    tt.sessionID,
+						SessionJsonl: tt.sessionJSONL,
+						Mode:         tt.mode,
 					},
 				},
 			})
@@ -392,8 +402,9 @@ func TestHandoff_AtCapacity(t *testing.T) {
 	_ = stream.Send(&outpostv1.HandoffRequest{
 		Payload: &outpostv1.HandoffRequest_Metadata{
 			Metadata: &outpostv1.HandoffMetadata{
-				Plan: "do something",
-				Mode: outpostv1.RunMode_RUN_MODE_HEADLESS,
+				SessionId:    "test-session",
+				SessionJsonl: []byte("data"),
+				Mode:         outpostv1.RunMode_RUN_MODE_HEADLESS,
 			},
 		},
 	})
@@ -405,6 +416,110 @@ func TestHandoff_AtCapacity(t *testing.T) {
 	if s, ok := status.FromError(err); ok {
 		if s.Code() != codes.ResourceExhausted {
 			t.Errorf("code = %v, want ResourceExhausted", s.Code())
+		}
+	}
+}
+
+func TestConvertMode_NotFound(t *testing.T) {
+	t.Parallel()
+	client, _ := setupTestServer(t)
+
+	_, err := client.ConvertMode(authCtx(), &outpostv1.ConvertModeRequest{
+		Id:         "nonexistent",
+		TargetMode: outpostv1.RunMode_RUN_MODE_HEADLESS,
+	})
+	if err == nil {
+		t.Fatal("expected error for nonexistent run")
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() != codes.NotFound {
+			t.Errorf("code = %v, want NotFound", s.Code())
+		}
+	}
+}
+
+func TestConvertMode_NotActive(t *testing.T) {
+	t.Parallel()
+	client, st := setupTestServer(t)
+
+	st.Add(&store.Run{
+		ID:        "done-run",
+		Mode:      store.ModeHeadless,
+		Status:    store.StatusComplete,
+		CreatedAt: time.Now(),
+	})
+
+	_, err := client.ConvertMode(authCtx(), &outpostv1.ConvertModeRequest{
+		Id:         "done-run",
+		TargetMode: outpostv1.RunMode_RUN_MODE_INTERACTIVE,
+	})
+	if err == nil {
+		t.Fatal("expected error for completed run")
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() != codes.FailedPrecondition {
+			t.Errorf("code = %v, want FailedPrecondition", s.Code())
+		}
+	}
+}
+
+func TestConvertMode_SameMode(t *testing.T) {
+	t.Parallel()
+	client, st := setupTestServer(t)
+
+	st.Add(&store.Run{
+		ID:        "running-headless",
+		Mode:      store.ModeHeadless,
+		Status:    store.StatusRunning,
+		CreatedAt: time.Now(),
+	})
+
+	_, err := client.ConvertMode(authCtx(), &outpostv1.ConvertModeRequest{
+		Id:         "running-headless",
+		TargetMode: outpostv1.RunMode_RUN_MODE_HEADLESS,
+	})
+	if err == nil {
+		t.Fatal("expected error for same mode conversion")
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("code = %v, want InvalidArgument", s.Code())
+		}
+	}
+}
+
+func TestConvertMode_InvalidMode(t *testing.T) {
+	t.Parallel()
+	client, _ := setupTestServer(t)
+
+	_, err := client.ConvertMode(authCtx(), &outpostv1.ConvertModeRequest{
+		Id:         "some-run",
+		TargetMode: outpostv1.RunMode_RUN_MODE_UNSPECIFIED,
+	})
+	if err == nil {
+		t.Fatal("expected error for unspecified mode")
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("code = %v, want InvalidArgument", s.Code())
+		}
+	}
+}
+
+func TestConvertMode_NoAuth_Rejected(t *testing.T) {
+	t.Parallel()
+	client, _ := setupTestServer(t)
+
+	_, err := client.ConvertMode(context.Background(), &outpostv1.ConvertModeRequest{
+		Id:         "some-run",
+		TargetMode: outpostv1.RunMode_RUN_MODE_HEADLESS,
+	})
+	if err == nil {
+		t.Fatal("expected error without auth")
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() != codes.Unauthenticated {
+			t.Errorf("code = %v, want Unauthenticated", s.Code())
 		}
 	}
 }

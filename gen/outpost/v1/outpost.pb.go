@@ -130,23 +130,26 @@ func (RunMode) EnumDescriptor() ([]byte, []int) {
 }
 
 type Run struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Mode          RunMode                `protobuf:"varint,3,opt,name=mode,proto3,enum=outpost.v1.RunMode" json:"mode,omitempty"`
-	Status        RunStatus              `protobuf:"varint,4,opt,name=status,proto3,enum=outpost.v1.RunStatus" json:"status,omitempty"`
-	BaseSha       string                 `protobuf:"bytes,5,opt,name=base_sha,json=baseSha,proto3" json:"base_sha,omitempty"`
-	FinalSha      string                 `protobuf:"bytes,6,opt,name=final_sha,json=finalSha,proto3" json:"final_sha,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	Attach        string                 `protobuf:"bytes,9,opt,name=attach,proto3" json:"attach,omitempty"`
-	LogTail       string                 `protobuf:"bytes,10,opt,name=log_tail,json=logTail,proto3" json:"log_tail,omitempty"`
-	PatchReady    bool                   `protobuf:"varint,11,opt,name=patch_ready,json=patchReady,proto3" json:"patch_ready,omitempty"`
-	Branch        string                 `protobuf:"bytes,12,opt,name=branch,proto3" json:"branch,omitempty"`
-	MaxTurns      int32                  `protobuf:"varint,13,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
-	Subdir        string                 `protobuf:"bytes,14,opt,name=subdir,proto3" json:"subdir,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Mode            RunMode                `protobuf:"varint,3,opt,name=mode,proto3,enum=outpost.v1.RunMode" json:"mode,omitempty"`
+	Status          RunStatus              `protobuf:"varint,4,opt,name=status,proto3,enum=outpost.v1.RunStatus" json:"status,omitempty"`
+	BaseSha         string                 `protobuf:"bytes,5,opt,name=base_sha,json=baseSha,proto3" json:"base_sha,omitempty"`
+	FinalSha        string                 `protobuf:"bytes,6,opt,name=final_sha,json=finalSha,proto3" json:"final_sha,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	FinishedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	Attach          string                 `protobuf:"bytes,9,opt,name=attach,proto3" json:"attach,omitempty"`
+	LogTail         string                 `protobuf:"bytes,10,opt,name=log_tail,json=logTail,proto3" json:"log_tail,omitempty"`
+	PatchReady      bool                   `protobuf:"varint,11,opt,name=patch_ready,json=patchReady,proto3" json:"patch_ready,omitempty"`
+	Branch          string                 `protobuf:"bytes,12,opt,name=branch,proto3" json:"branch,omitempty"`
+	MaxTurns        int32                  `protobuf:"varint,13,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
+	Subdir          string                 `protobuf:"bytes,14,opt,name=subdir,proto3" json:"subdir,omitempty"`
+	SessionId       string                 `protobuf:"bytes,15,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ForkedSessionId string                 `protobuf:"bytes,16,opt,name=forked_session_id,json=forkedSessionId,proto3" json:"forked_session_id,omitempty"`
+	SessionReady    bool                   `protobuf:"varint,17,opt,name=session_ready,json=sessionReady,proto3" json:"session_ready,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -275,6 +278,27 @@ func (x *Run) GetSubdir() string {
 		return x.Subdir
 	}
 	return ""
+}
+
+func (x *Run) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *Run) GetForkedSessionId() string {
+	if x != nil {
+		return x.ForkedSessionId
+	}
+	return ""
+}
+
+func (x *Run) GetSessionReady() bool {
+	if x != nil {
+		return x.SessionReady
+	}
+	return false
 }
 
 type GetRunRequest struct {
@@ -929,12 +953,13 @@ func (*HandoffRequest_Data) isHandoffRequest_Payload() {}
 
 type HandoffMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Plan          string                 `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
 	Mode          RunMode                `protobuf:"varint,2,opt,name=mode,proto3,enum=outpost.v1.RunMode" json:"mode,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Branch        string                 `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
 	MaxTurns      int32                  `protobuf:"varint,5,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	Subdir        string                 `protobuf:"bytes,6,opt,name=subdir,proto3" json:"subdir,omitempty"`
+	SessionId     string                 `protobuf:"bytes,7,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`          // Claude session UUID to resume
+	SessionJsonl  []byte                 `protobuf:"bytes,8,opt,name=session_jsonl,json=sessionJsonl,proto3" json:"session_jsonl,omitempty"` // Session JSONL file contents
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -967,13 +992,6 @@ func (x *HandoffMetadata) ProtoReflect() protoreflect.Message {
 // Deprecated: Use HandoffMetadata.ProtoReflect.Descriptor instead.
 func (*HandoffMetadata) Descriptor() ([]byte, []int) {
 	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *HandoffMetadata) GetPlan() string {
-	if x != nil {
-		return x.Plan
-	}
-	return ""
 }
 
 func (x *HandoffMetadata) GetMode() RunMode {
@@ -1009,6 +1027,20 @@ func (x *HandoffMetadata) GetSubdir() string {
 		return x.Subdir
 	}
 	return ""
+}
+
+func (x *HandoffMetadata) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *HandoffMetadata) GetSessionJsonl() []byte {
+	if x != nil {
+		return x.SessionJsonl
+	}
+	return nil
 }
 
 type HandoffResponse struct {
@@ -1255,6 +1287,190 @@ func (x *DownloadPatchResponse) GetData() []byte {
 	return nil
 }
 
+type DownloadSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadSessionRequest) Reset() {
+	*x = DownloadSessionRequest{}
+	mi := &file_outpost_v1_outpost_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadSessionRequest) ProtoMessage() {}
+
+func (x *DownloadSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_outpost_v1_outpost_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadSessionRequest.ProtoReflect.Descriptor instead.
+func (*DownloadSessionRequest) Descriptor() ([]byte, []int) {
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DownloadSessionRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DownloadSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadSessionResponse) Reset() {
+	*x = DownloadSessionResponse{}
+	mi := &file_outpost_v1_outpost_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadSessionResponse) ProtoMessage() {}
+
+func (x *DownloadSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_outpost_v1_outpost_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadSessionResponse.ProtoReflect.Descriptor instead.
+func (*DownloadSessionResponse) Descriptor() ([]byte, []int) {
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *DownloadSessionResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type ConvertModeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TargetMode    RunMode                `protobuf:"varint,2,opt,name=target_mode,json=targetMode,proto3,enum=outpost.v1.RunMode" json:"target_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConvertModeRequest) Reset() {
+	*x = ConvertModeRequest{}
+	mi := &file_outpost_v1_outpost_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConvertModeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConvertModeRequest) ProtoMessage() {}
+
+func (x *ConvertModeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_outpost_v1_outpost_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConvertModeRequest.ProtoReflect.Descriptor instead.
+func (*ConvertModeRequest) Descriptor() ([]byte, []int) {
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ConvertModeRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ConvertModeRequest) GetTargetMode() RunMode {
+	if x != nil {
+		return x.TargetMode
+	}
+	return RunMode_RUN_MODE_UNSPECIFIED
+}
+
+type ConvertModeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *Run                   `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConvertModeResponse) Reset() {
+	*x = ConvertModeResponse{}
+	mi := &file_outpost_v1_outpost_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConvertModeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConvertModeResponse) ProtoMessage() {}
+
+func (x *ConvertModeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_outpost_v1_outpost_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConvertModeResponse.ProtoReflect.Descriptor instead.
+func (*ConvertModeResponse) Descriptor() ([]byte, []int) {
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ConvertModeResponse) GetRun() *Run {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
 type AttachRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
@@ -1264,7 +1480,7 @@ type AttachRequest struct {
 
 func (x *AttachRequest) Reset() {
 	*x = AttachRequest{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[20]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1276,7 +1492,7 @@ func (x *AttachRequest) String() string {
 func (*AttachRequest) ProtoMessage() {}
 
 func (x *AttachRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[20]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1289,7 +1505,7 @@ func (x *AttachRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachRequest.ProtoReflect.Descriptor instead.
 func (*AttachRequest) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{20}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AttachRequest) GetData() []byte {
@@ -1308,7 +1524,7 @@ type AttachResponse struct {
 
 func (x *AttachResponse) Reset() {
 	*x = AttachResponse{}
-	mi := &file_outpost_v1_outpost_proto_msgTypes[21]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1320,7 +1536,7 @@ func (x *AttachResponse) String() string {
 func (*AttachResponse) ProtoMessage() {}
 
 func (x *AttachResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_outpost_v1_outpost_proto_msgTypes[21]
+	mi := &file_outpost_v1_outpost_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1333,7 +1549,7 @@ func (x *AttachResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachResponse.ProtoReflect.Descriptor instead.
 func (*AttachResponse) Descriptor() ([]byte, []int) {
-	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{21}
+	return file_outpost_v1_outpost_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AttachResponse) GetData() []byte {
@@ -1348,7 +1564,7 @@ var File_outpost_v1_outpost_proto protoreflect.FileDescriptor
 const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\n" +
 	"\x18outpost/v1/outpost.proto\x12\n" +
-	"outpost.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd2\x03\n" +
+	"outpost.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x04\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12'\n" +
@@ -1367,7 +1583,11 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"patchReady\x12\x16\n" +
 	"\x06branch\x18\f \x01(\tR\x06branch\x12\x1b\n" +
 	"\tmax_turns\x18\r \x01(\x05R\bmaxTurns\x12\x16\n" +
-	"\x06subdir\x18\x0e \x01(\tR\x06subdir\"\x1f\n" +
+	"\x06subdir\x18\x0e \x01(\tR\x06subdir\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x0f \x01(\tR\tsessionId\x12*\n" +
+	"\x11forked_session_id\x18\x10 \x01(\tR\x0fforkedSessionId\x12#\n" +
+	"\rsession_ready\x18\x11 \x01(\bR\fsessionReady\"\x1f\n" +
 	"\rGetRunRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"3\n" +
 	"\x0eGetRunResponse\x12!\n" +
@@ -1402,14 +1622,16 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\x0eHandoffRequest\x129\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1b.outpost.v1.HandoffMetadataH\x00R\bmetadata\x12\x14\n" +
 	"\x04data\x18\x02 \x01(\fH\x00R\x04dataB\t\n" +
-	"\apayload\"\xaf\x01\n" +
-	"\x0fHandoffMetadata\x12\x12\n" +
-	"\x04plan\x18\x01 \x01(\tR\x04plan\x12'\n" +
+	"\apayload\"\xdf\x01\n" +
+	"\x0fHandoffMetadata\x12'\n" +
 	"\x04mode\x18\x02 \x01(\x0e2\x13.outpost.v1.RunModeR\x04mode\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x04 \x01(\tR\x06branch\x12\x1b\n" +
 	"\tmax_turns\x18\x05 \x01(\x05R\bmaxTurns\x12\x16\n" +
-	"\x06subdir\x18\x06 \x01(\tR\x06subdir\"h\n" +
+	"\x06subdir\x18\x06 \x01(\tR\x06subdir\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\a \x01(\tR\tsessionId\x12#\n" +
+	"\rsession_jsonl\x18\b \x01(\fR\fsessionJsonl\"h\n" +
 	"\x0fHandoffResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x15.outpost.v1.RunStatusR\x06status\x12\x16\n" +
@@ -1422,7 +1644,17 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\x14DownloadPatchRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"+\n" +
 	"\x15DownloadPatchResponse\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\fR\x04data\"#\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\"(\n" +
+	"\x16DownloadSessionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"-\n" +
+	"\x17DownloadSessionResponse\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\"Z\n" +
+	"\x12ConvertModeRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x124\n" +
+	"\vtarget_mode\x18\x02 \x01(\x0e2\x13.outpost.v1.RunModeR\n" +
+	"targetMode\"8\n" +
+	"\x13ConvertModeResponse\x12!\n" +
+	"\x03run\x18\x01 \x01(\v2\x0f.outpost.v1.RunR\x03run\"#\n" +
 	"\rAttachRequest\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\"$\n" +
 	"\x0eAttachResponse\x12\x12\n" +
@@ -1437,7 +1669,7 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\aRunMode\x12\x18\n" +
 	"\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RUN_MODE_INTERACTIVE\x10\x01\x12\x15\n" +
-	"\x11RUN_MODE_HEADLESS\x10\x022\xf8\x05\n" +
+	"\x11RUN_MODE_HEADLESS\x10\x022\xa6\a\n" +
 	"\x0eOutpostService\x12N\n" +
 	"\vHealthCheck\x12\x1e.outpost.v1.HealthCheckRequest\x1a\x1f.outpost.v1.HealthCheckResponse\x12?\n" +
 	"\x06GetRun\x12\x19.outpost.v1.GetRunRequest\x1a\x1a.outpost.v1.GetRunResponse\x12E\n" +
@@ -1445,10 +1677,12 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\aDropRun\x12\x1a.outpost.v1.DropRunRequest\x1a\x1b.outpost.v1.DropRunResponse\x12K\n" +
 	"\n" +
 	"CleanupRun\x12\x1d.outpost.v1.CleanupRunRequest\x1a\x1e.outpost.v1.CleanupRunResponse\x12Q\n" +
-	"\fServerDoctor\x12\x1f.outpost.v1.ServerDoctorRequest\x1a .outpost.v1.ServerDoctorResponse\x12D\n" +
+	"\fServerDoctor\x12\x1f.outpost.v1.ServerDoctorRequest\x1a .outpost.v1.ServerDoctorResponse\x12N\n" +
+	"\vConvertMode\x12\x1e.outpost.v1.ConvertModeRequest\x1a\x1f.outpost.v1.ConvertModeResponse\x12D\n" +
 	"\aHandoff\x12\x1a.outpost.v1.HandoffRequest\x1a\x1b.outpost.v1.HandoffResponse(\x01\x12G\n" +
 	"\bTailLogs\x12\x1b.outpost.v1.TailLogsRequest\x1a\x1c.outpost.v1.TailLogsResponse0\x01\x12V\n" +
-	"\rDownloadPatch\x12 .outpost.v1.DownloadPatchRequest\x1a!.outpost.v1.DownloadPatchResponse0\x01\x12C\n" +
+	"\rDownloadPatch\x12 .outpost.v1.DownloadPatchRequest\x1a!.outpost.v1.DownloadPatchResponse0\x01\x12\\\n" +
+	"\x0fDownloadSession\x12\".outpost.v1.DownloadSessionRequest\x1a#.outpost.v1.DownloadSessionResponse0\x01\x12C\n" +
 	"\x06Attach\x12\x19.outpost.v1.AttachRequest\x1a\x1a.outpost.v1.AttachResponse(\x010\x01B7Z5github.com/wesgrimes/outpost/gen/outpost/v1;outpostv1b\x06proto3"
 
 var (
@@ -1464,69 +1698,79 @@ func file_outpost_v1_outpost_proto_rawDescGZIP() []byte {
 }
 
 var file_outpost_v1_outpost_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_outpost_v1_outpost_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_outpost_v1_outpost_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_outpost_v1_outpost_proto_goTypes = []any{
-	(RunStatus)(0),                // 0: outpost.v1.RunStatus
-	(RunMode)(0),                  // 1: outpost.v1.RunMode
-	(*Run)(nil),                   // 2: outpost.v1.Run
-	(*GetRunRequest)(nil),         // 3: outpost.v1.GetRunRequest
-	(*GetRunResponse)(nil),        // 4: outpost.v1.GetRunResponse
-	(*ListRunsRequest)(nil),       // 5: outpost.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),      // 6: outpost.v1.ListRunsResponse
-	(*DropRunRequest)(nil),        // 7: outpost.v1.DropRunRequest
-	(*DropRunResponse)(nil),       // 8: outpost.v1.DropRunResponse
-	(*CleanupRunRequest)(nil),     // 9: outpost.v1.CleanupRunRequest
-	(*CleanupRunResponse)(nil),    // 10: outpost.v1.CleanupRunResponse
-	(*HealthCheckRequest)(nil),    // 11: outpost.v1.HealthCheckRequest
-	(*HealthCheckResponse)(nil),   // 12: outpost.v1.HealthCheckResponse
-	(*ServerDoctorRequest)(nil),   // 13: outpost.v1.ServerDoctorRequest
-	(*ServerDoctorResponse)(nil),  // 14: outpost.v1.ServerDoctorResponse
-	(*HandoffRequest)(nil),        // 15: outpost.v1.HandoffRequest
-	(*HandoffMetadata)(nil),       // 16: outpost.v1.HandoffMetadata
-	(*HandoffResponse)(nil),       // 17: outpost.v1.HandoffResponse
-	(*TailLogsRequest)(nil),       // 18: outpost.v1.TailLogsRequest
-	(*TailLogsResponse)(nil),      // 19: outpost.v1.TailLogsResponse
-	(*DownloadPatchRequest)(nil),  // 20: outpost.v1.DownloadPatchRequest
-	(*DownloadPatchResponse)(nil), // 21: outpost.v1.DownloadPatchResponse
-	(*AttachRequest)(nil),         // 22: outpost.v1.AttachRequest
-	(*AttachResponse)(nil),        // 23: outpost.v1.AttachResponse
-	(*timestamppb.Timestamp)(nil), // 24: google.protobuf.Timestamp
+	(RunStatus)(0),                  // 0: outpost.v1.RunStatus
+	(RunMode)(0),                    // 1: outpost.v1.RunMode
+	(*Run)(nil),                     // 2: outpost.v1.Run
+	(*GetRunRequest)(nil),           // 3: outpost.v1.GetRunRequest
+	(*GetRunResponse)(nil),          // 4: outpost.v1.GetRunResponse
+	(*ListRunsRequest)(nil),         // 5: outpost.v1.ListRunsRequest
+	(*ListRunsResponse)(nil),        // 6: outpost.v1.ListRunsResponse
+	(*DropRunRequest)(nil),          // 7: outpost.v1.DropRunRequest
+	(*DropRunResponse)(nil),         // 8: outpost.v1.DropRunResponse
+	(*CleanupRunRequest)(nil),       // 9: outpost.v1.CleanupRunRequest
+	(*CleanupRunResponse)(nil),      // 10: outpost.v1.CleanupRunResponse
+	(*HealthCheckRequest)(nil),      // 11: outpost.v1.HealthCheckRequest
+	(*HealthCheckResponse)(nil),     // 12: outpost.v1.HealthCheckResponse
+	(*ServerDoctorRequest)(nil),     // 13: outpost.v1.ServerDoctorRequest
+	(*ServerDoctorResponse)(nil),    // 14: outpost.v1.ServerDoctorResponse
+	(*HandoffRequest)(nil),          // 15: outpost.v1.HandoffRequest
+	(*HandoffMetadata)(nil),         // 16: outpost.v1.HandoffMetadata
+	(*HandoffResponse)(nil),         // 17: outpost.v1.HandoffResponse
+	(*TailLogsRequest)(nil),         // 18: outpost.v1.TailLogsRequest
+	(*TailLogsResponse)(nil),        // 19: outpost.v1.TailLogsResponse
+	(*DownloadPatchRequest)(nil),    // 20: outpost.v1.DownloadPatchRequest
+	(*DownloadPatchResponse)(nil),   // 21: outpost.v1.DownloadPatchResponse
+	(*DownloadSessionRequest)(nil),  // 22: outpost.v1.DownloadSessionRequest
+	(*DownloadSessionResponse)(nil), // 23: outpost.v1.DownloadSessionResponse
+	(*ConvertModeRequest)(nil),      // 24: outpost.v1.ConvertModeRequest
+	(*ConvertModeResponse)(nil),     // 25: outpost.v1.ConvertModeResponse
+	(*AttachRequest)(nil),           // 26: outpost.v1.AttachRequest
+	(*AttachResponse)(nil),          // 27: outpost.v1.AttachResponse
+	(*timestamppb.Timestamp)(nil),   // 28: google.protobuf.Timestamp
 }
 var file_outpost_v1_outpost_proto_depIdxs = []int32{
 	1,  // 0: outpost.v1.Run.mode:type_name -> outpost.v1.RunMode
 	0,  // 1: outpost.v1.Run.status:type_name -> outpost.v1.RunStatus
-	24, // 2: outpost.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	24, // 3: outpost.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
+	28, // 2: outpost.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	28, // 3: outpost.v1.Run.finished_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: outpost.v1.GetRunResponse.run:type_name -> outpost.v1.Run
 	2,  // 5: outpost.v1.ListRunsResponse.runs:type_name -> outpost.v1.Run
 	16, // 6: outpost.v1.HandoffRequest.metadata:type_name -> outpost.v1.HandoffMetadata
 	1,  // 7: outpost.v1.HandoffMetadata.mode:type_name -> outpost.v1.RunMode
 	0,  // 8: outpost.v1.HandoffResponse.status:type_name -> outpost.v1.RunStatus
-	11, // 9: outpost.v1.OutpostService.HealthCheck:input_type -> outpost.v1.HealthCheckRequest
-	3,  // 10: outpost.v1.OutpostService.GetRun:input_type -> outpost.v1.GetRunRequest
-	5,  // 11: outpost.v1.OutpostService.ListRuns:input_type -> outpost.v1.ListRunsRequest
-	7,  // 12: outpost.v1.OutpostService.DropRun:input_type -> outpost.v1.DropRunRequest
-	9,  // 13: outpost.v1.OutpostService.CleanupRun:input_type -> outpost.v1.CleanupRunRequest
-	13, // 14: outpost.v1.OutpostService.ServerDoctor:input_type -> outpost.v1.ServerDoctorRequest
-	15, // 15: outpost.v1.OutpostService.Handoff:input_type -> outpost.v1.HandoffRequest
-	18, // 16: outpost.v1.OutpostService.TailLogs:input_type -> outpost.v1.TailLogsRequest
-	20, // 17: outpost.v1.OutpostService.DownloadPatch:input_type -> outpost.v1.DownloadPatchRequest
-	22, // 18: outpost.v1.OutpostService.Attach:input_type -> outpost.v1.AttachRequest
-	12, // 19: outpost.v1.OutpostService.HealthCheck:output_type -> outpost.v1.HealthCheckResponse
-	4,  // 20: outpost.v1.OutpostService.GetRun:output_type -> outpost.v1.GetRunResponse
-	6,  // 21: outpost.v1.OutpostService.ListRuns:output_type -> outpost.v1.ListRunsResponse
-	8,  // 22: outpost.v1.OutpostService.DropRun:output_type -> outpost.v1.DropRunResponse
-	10, // 23: outpost.v1.OutpostService.CleanupRun:output_type -> outpost.v1.CleanupRunResponse
-	14, // 24: outpost.v1.OutpostService.ServerDoctor:output_type -> outpost.v1.ServerDoctorResponse
-	17, // 25: outpost.v1.OutpostService.Handoff:output_type -> outpost.v1.HandoffResponse
-	19, // 26: outpost.v1.OutpostService.TailLogs:output_type -> outpost.v1.TailLogsResponse
-	21, // 27: outpost.v1.OutpostService.DownloadPatch:output_type -> outpost.v1.DownloadPatchResponse
-	23, // 28: outpost.v1.OutpostService.Attach:output_type -> outpost.v1.AttachResponse
-	19, // [19:29] is the sub-list for method output_type
-	9,  // [9:19] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	1,  // 9: outpost.v1.ConvertModeRequest.target_mode:type_name -> outpost.v1.RunMode
+	2,  // 10: outpost.v1.ConvertModeResponse.run:type_name -> outpost.v1.Run
+	11, // 11: outpost.v1.OutpostService.HealthCheck:input_type -> outpost.v1.HealthCheckRequest
+	3,  // 12: outpost.v1.OutpostService.GetRun:input_type -> outpost.v1.GetRunRequest
+	5,  // 13: outpost.v1.OutpostService.ListRuns:input_type -> outpost.v1.ListRunsRequest
+	7,  // 14: outpost.v1.OutpostService.DropRun:input_type -> outpost.v1.DropRunRequest
+	9,  // 15: outpost.v1.OutpostService.CleanupRun:input_type -> outpost.v1.CleanupRunRequest
+	13, // 16: outpost.v1.OutpostService.ServerDoctor:input_type -> outpost.v1.ServerDoctorRequest
+	24, // 17: outpost.v1.OutpostService.ConvertMode:input_type -> outpost.v1.ConvertModeRequest
+	15, // 18: outpost.v1.OutpostService.Handoff:input_type -> outpost.v1.HandoffRequest
+	18, // 19: outpost.v1.OutpostService.TailLogs:input_type -> outpost.v1.TailLogsRequest
+	20, // 20: outpost.v1.OutpostService.DownloadPatch:input_type -> outpost.v1.DownloadPatchRequest
+	22, // 21: outpost.v1.OutpostService.DownloadSession:input_type -> outpost.v1.DownloadSessionRequest
+	26, // 22: outpost.v1.OutpostService.Attach:input_type -> outpost.v1.AttachRequest
+	12, // 23: outpost.v1.OutpostService.HealthCheck:output_type -> outpost.v1.HealthCheckResponse
+	4,  // 24: outpost.v1.OutpostService.GetRun:output_type -> outpost.v1.GetRunResponse
+	6,  // 25: outpost.v1.OutpostService.ListRuns:output_type -> outpost.v1.ListRunsResponse
+	8,  // 26: outpost.v1.OutpostService.DropRun:output_type -> outpost.v1.DropRunResponse
+	10, // 27: outpost.v1.OutpostService.CleanupRun:output_type -> outpost.v1.CleanupRunResponse
+	14, // 28: outpost.v1.OutpostService.ServerDoctor:output_type -> outpost.v1.ServerDoctorResponse
+	25, // 29: outpost.v1.OutpostService.ConvertMode:output_type -> outpost.v1.ConvertModeResponse
+	17, // 30: outpost.v1.OutpostService.Handoff:output_type -> outpost.v1.HandoffResponse
+	19, // 31: outpost.v1.OutpostService.TailLogs:output_type -> outpost.v1.TailLogsResponse
+	21, // 32: outpost.v1.OutpostService.DownloadPatch:output_type -> outpost.v1.DownloadPatchResponse
+	23, // 33: outpost.v1.OutpostService.DownloadSession:output_type -> outpost.v1.DownloadSessionResponse
+	27, // 34: outpost.v1.OutpostService.Attach:output_type -> outpost.v1.AttachResponse
+	23, // [23:35] is the sub-list for method output_type
+	11, // [11:23] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_outpost_v1_outpost_proto_init() }
@@ -1544,7 +1788,7 @@ func file_outpost_v1_outpost_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_outpost_v1_outpost_proto_rawDesc), len(file_outpost_v1_outpost_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   22,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

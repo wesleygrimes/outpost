@@ -57,6 +57,7 @@ func New(cfg *config.ServerConfig, st *store.Store) (*Server, error) {
 	}
 
 	opts = append(opts,
+		grpc.MaxRecvMsgSize(64<<20),
 		grpc.UnaryInterceptor(s.unaryAuthInterceptor),
 		grpc.StreamInterceptor(s.streamAuthInterceptor),
 	)

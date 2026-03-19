@@ -19,16 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	OutpostService_HealthCheck_FullMethodName   = "/outpost.v1.OutpostService/HealthCheck"
-	OutpostService_GetRun_FullMethodName        = "/outpost.v1.OutpostService/GetRun"
-	OutpostService_ListRuns_FullMethodName      = "/outpost.v1.OutpostService/ListRuns"
-	OutpostService_DropRun_FullMethodName       = "/outpost.v1.OutpostService/DropRun"
-	OutpostService_CleanupRun_FullMethodName    = "/outpost.v1.OutpostService/CleanupRun"
-	OutpostService_ServerDoctor_FullMethodName  = "/outpost.v1.OutpostService/ServerDoctor"
-	OutpostService_Handoff_FullMethodName       = "/outpost.v1.OutpostService/Handoff"
-	OutpostService_TailLogs_FullMethodName      = "/outpost.v1.OutpostService/TailLogs"
-	OutpostService_DownloadPatch_FullMethodName = "/outpost.v1.OutpostService/DownloadPatch"
-	OutpostService_Attach_FullMethodName        = "/outpost.v1.OutpostService/Attach"
+	OutpostService_HealthCheck_FullMethodName     = "/outpost.v1.OutpostService/HealthCheck"
+	OutpostService_GetRun_FullMethodName          = "/outpost.v1.OutpostService/GetRun"
+	OutpostService_ListRuns_FullMethodName        = "/outpost.v1.OutpostService/ListRuns"
+	OutpostService_DropRun_FullMethodName         = "/outpost.v1.OutpostService/DropRun"
+	OutpostService_CleanupRun_FullMethodName      = "/outpost.v1.OutpostService/CleanupRun"
+	OutpostService_ServerDoctor_FullMethodName    = "/outpost.v1.OutpostService/ServerDoctor"
+	OutpostService_ConvertMode_FullMethodName     = "/outpost.v1.OutpostService/ConvertMode"
+	OutpostService_Handoff_FullMethodName         = "/outpost.v1.OutpostService/Handoff"
+	OutpostService_TailLogs_FullMethodName        = "/outpost.v1.OutpostService/TailLogs"
+	OutpostService_DownloadPatch_FullMethodName   = "/outpost.v1.OutpostService/DownloadPatch"
+	OutpostService_DownloadSession_FullMethodName = "/outpost.v1.OutpostService/DownloadSession"
+	OutpostService_Attach_FullMethodName          = "/outpost.v1.OutpostService/Attach"
 )
 
 // OutpostServiceClient is the client API for OutpostService service.
@@ -42,11 +44,13 @@ type OutpostServiceClient interface {
 	DropRun(ctx context.Context, in *DropRunRequest, opts ...grpc.CallOption) (*DropRunResponse, error)
 	CleanupRun(ctx context.Context, in *CleanupRunRequest, opts ...grpc.CallOption) (*CleanupRunResponse, error)
 	ServerDoctor(ctx context.Context, in *ServerDoctorRequest, opts ...grpc.CallOption) (*ServerDoctorResponse, error)
+	ConvertMode(ctx context.Context, in *ConvertModeRequest, opts ...grpc.CallOption) (*ConvertModeResponse, error)
 	// Client streaming
 	Handoff(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[HandoffRequest, HandoffResponse], error)
 	// Server streaming
 	TailLogs(ctx context.Context, in *TailLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailLogsResponse], error)
 	DownloadPatch(ctx context.Context, in *DownloadPatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadPatchResponse], error)
+	DownloadSession(ctx context.Context, in *DownloadSessionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadSessionResponse], error)
 	// Bidi streaming
 	Attach(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[AttachRequest, AttachResponse], error)
 }
@@ -119,6 +123,16 @@ func (c *outpostServiceClient) ServerDoctor(ctx context.Context, in *ServerDocto
 	return out, nil
 }
 
+func (c *outpostServiceClient) ConvertMode(ctx context.Context, in *ConvertModeRequest, opts ...grpc.CallOption) (*ConvertModeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConvertModeResponse)
+	err := c.cc.Invoke(ctx, OutpostService_ConvertMode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *outpostServiceClient) Handoff(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[HandoffRequest, HandoffResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &OutpostService_ServiceDesc.Streams[0], OutpostService_Handoff_FullMethodName, cOpts...)
@@ -170,9 +184,28 @@ func (c *outpostServiceClient) DownloadPatch(ctx context.Context, in *DownloadPa
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type OutpostService_DownloadPatchClient = grpc.ServerStreamingClient[DownloadPatchResponse]
 
+func (c *outpostServiceClient) DownloadSession(ctx context.Context, in *DownloadSessionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadSessionResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &OutpostService_ServiceDesc.Streams[3], OutpostService_DownloadSession_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[DownloadSessionRequest, DownloadSessionResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type OutpostService_DownloadSessionClient = grpc.ServerStreamingClient[DownloadSessionResponse]
+
 func (c *outpostServiceClient) Attach(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[AttachRequest, AttachResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &OutpostService_ServiceDesc.Streams[3], OutpostService_Attach_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &OutpostService_ServiceDesc.Streams[4], OutpostService_Attach_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,11 +227,13 @@ type OutpostServiceServer interface {
 	DropRun(context.Context, *DropRunRequest) (*DropRunResponse, error)
 	CleanupRun(context.Context, *CleanupRunRequest) (*CleanupRunResponse, error)
 	ServerDoctor(context.Context, *ServerDoctorRequest) (*ServerDoctorResponse, error)
+	ConvertMode(context.Context, *ConvertModeRequest) (*ConvertModeResponse, error)
 	// Client streaming
 	Handoff(grpc.ClientStreamingServer[HandoffRequest, HandoffResponse]) error
 	// Server streaming
 	TailLogs(*TailLogsRequest, grpc.ServerStreamingServer[TailLogsResponse]) error
 	DownloadPatch(*DownloadPatchRequest, grpc.ServerStreamingServer[DownloadPatchResponse]) error
+	DownloadSession(*DownloadSessionRequest, grpc.ServerStreamingServer[DownloadSessionResponse]) error
 	// Bidi streaming
 	Attach(grpc.BidiStreamingServer[AttachRequest, AttachResponse]) error
 	mustEmbedUnimplementedOutpostServiceServer()
@@ -229,6 +264,9 @@ func (UnimplementedOutpostServiceServer) CleanupRun(context.Context, *CleanupRun
 func (UnimplementedOutpostServiceServer) ServerDoctor(context.Context, *ServerDoctorRequest) (*ServerDoctorResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ServerDoctor not implemented")
 }
+func (UnimplementedOutpostServiceServer) ConvertMode(context.Context, *ConvertModeRequest) (*ConvertModeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConvertMode not implemented")
+}
 func (UnimplementedOutpostServiceServer) Handoff(grpc.ClientStreamingServer[HandoffRequest, HandoffResponse]) error {
 	return status.Error(codes.Unimplemented, "method Handoff not implemented")
 }
@@ -237,6 +275,9 @@ func (UnimplementedOutpostServiceServer) TailLogs(*TailLogsRequest, grpc.ServerS
 }
 func (UnimplementedOutpostServiceServer) DownloadPatch(*DownloadPatchRequest, grpc.ServerStreamingServer[DownloadPatchResponse]) error {
 	return status.Error(codes.Unimplemented, "method DownloadPatch not implemented")
+}
+func (UnimplementedOutpostServiceServer) DownloadSession(*DownloadSessionRequest, grpc.ServerStreamingServer[DownloadSessionResponse]) error {
+	return status.Error(codes.Unimplemented, "method DownloadSession not implemented")
 }
 func (UnimplementedOutpostServiceServer) Attach(grpc.BidiStreamingServer[AttachRequest, AttachResponse]) error {
 	return status.Error(codes.Unimplemented, "method Attach not implemented")
@@ -370,6 +411,24 @@ func _OutpostService_ServerDoctor_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OutpostService_ConvertMode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConvertModeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OutpostServiceServer).ConvertMode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OutpostService_ConvertMode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OutpostServiceServer).ConvertMode(ctx, req.(*ConvertModeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _OutpostService_Handoff_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(OutpostServiceServer).Handoff(&grpc.GenericServerStream[HandoffRequest, HandoffResponse]{ServerStream: stream})
 }
@@ -398,6 +457,17 @@ func _OutpostService_DownloadPatch_Handler(srv interface{}, stream grpc.ServerSt
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type OutpostService_DownloadPatchServer = grpc.ServerStreamingServer[DownloadPatchResponse]
+
+func _OutpostService_DownloadSession_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(DownloadSessionRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(OutpostServiceServer).DownloadSession(m, &grpc.GenericServerStream[DownloadSessionRequest, DownloadSessionResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type OutpostService_DownloadSessionServer = grpc.ServerStreamingServer[DownloadSessionResponse]
 
 func _OutpostService_Attach_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(OutpostServiceServer).Attach(&grpc.GenericServerStream[AttachRequest, AttachResponse]{ServerStream: stream})
@@ -437,6 +507,10 @@ var OutpostService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ServerDoctor",
 			Handler:    _OutpostService_ServerDoctor_Handler,
 		},
+		{
+			MethodName: "ConvertMode",
+			Handler:    _OutpostService_ConvertMode_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -452,6 +526,11 @@ var OutpostService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "DownloadPatch",
 			Handler:       _OutpostService_DownloadPatch_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "DownloadSession",
+			Handler:       _OutpostService_DownloadSession_Handler,
 			ServerStreams: true,
 		},
 		{

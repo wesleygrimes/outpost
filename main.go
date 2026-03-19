@@ -43,6 +43,8 @@ func main() {
 		err = cmd.Pickup(os.Args[2:])
 	case "drop":
 		err = cmd.Drop(os.Args[2:])
+	case "convert":
+		err = cmd.Convert(os.Args[2:])
 
 	// Meta.
 	case "version":
@@ -75,6 +77,7 @@ Client commands:
   logs <id>            Stream or dump run log output
   pickup <id>          Download completed patch
   drop <id>            Drop a run
+  convert <id> <mode>  Convert between interactive/headless
 
 Meta:
   version              Print version`)

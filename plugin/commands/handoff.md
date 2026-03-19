@@ -3,7 +3,7 @@ description: "Hand off the current implementation plan to a remote Outpost serve
 argument-hint: "[headless|interactive] [--name N] [--branch B] [--max-turns N]"
 ---
 
-Hand off the current implementation plan to a remote Outpost server for execution.
+Hand off the current session to a remote Outpost server for execution via session continuity.
 
 Usage: /outpost:handoff [headless|interactive] [--name N] [--branch B] [--max-turns N]
 
@@ -11,33 +11,31 @@ Arguments: $ARGUMENTS
 
 Follow these steps:
 
-1. **Compile the implementation plan.** Summarize everything from this
-   conversation into a self-contained markdown document. The remote session
-   has ZERO context from this conversation, so include:
-   - Full problem description and requirements
-   - Specific files to modify and how
-   - Any relevant code snippets or patterns
-   - Acceptance criteria
-   - Testing instructions
-   Write the plan to `/tmp/outpost-plan.md` using a heredoc.
+1. **Detect the current session ID.** Find the most recently modified `.jsonl`
+   file in the Claude projects directory for this working directory:
+   ```bash
+   ls -t ~/.claude/projects/$(pwd | tr '/' '-')/*.jsonl 2>/dev/null | head -1
+   ```
+   Extract the session ID from the filename (strip path and `.jsonl` extension).
+   If no session files found, tell the user this command must be run from
+   within a Claude Code session.
 
 2. **Parse arguments.** Defaults: mode=interactive, name=empty, branch=empty,
    max_turns=50. Parse from: $ARGUMENTS
 
 3. **Submit to Outpost** using the outpost CLI:
    ```bash
-   outpost handoff --plan /tmp/outpost-plan.md \
+   outpost handoff --session-id "${SESSION_ID}" \
      --mode "${MODE:-interactive}" \
      --name "${NAME}" \
      --branch "${BRANCH}" \
      --max-turns "${MAX_TURNS:-50}"
    ```
 
-4. **Clean up:** `rm -f /tmp/outpost-plan.md`
-
-5. **Report results.** Parse the key=value output:
+4. **Report results.** Parse the key=value output:
    - Run ID (from `id=...`)
    - Attach command (from `attach=...`, for interactive mode)
+   - Mention that the remote session has full conversation context via session continuity
    - Check status: `/outpost:status <id>`
    - View logs: `/outpost:logs <id>`
    - Pick up when done: `/outpost:pickup <id>`

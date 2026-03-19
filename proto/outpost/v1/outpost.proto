@@ -39,7 +39,10 @@ message Run {
   bool                      patch_ready = 11;
   string                    branch      = 12;
   int32                     max_turns   = 13;
-  string                    subdir      = 14;
+  string                    subdir            = 14;
+  string                    session_id        = 15;
+  string                    forked_session_id = 16;
+  bool                      session_ready     = 17;
 }
 
 // ---------- Unary ----------
@@ -92,12 +95,13 @@ message HandoffRequest {
 }
 
 message HandoffMetadata {
-  string  plan      = 1;
-  RunMode mode      = 2;
-  string  name      = 3;
-  string  branch    = 4;
-  int32   max_turns = 5;
-  string  subdir    = 6;
+  RunMode mode       = 2;
+  string  name       = 3;
+  string  branch     = 4;
+  int32   max_turns  = 5;
+  string  subdir     = 6;
+  string  session_id = 7;    // Claude session UUID to resume
+  bytes   session_jsonl = 8; // Session JSONL file contents
 }
 
 message HandoffResponse {
@@ -121,6 +125,21 @@ message DownloadPatchRequest { string id = 1; }
 
 message DownloadPatchResponse { bytes data = 1; }
 
+// ---------- Server streaming: DownloadSession ----------
+
+message DownloadSessionRequest { string id = 1; }
+
+message DownloadSessionResponse { bytes data = 1; }
+
+// ---------- Unary: ConvertMode ----------
+
+message ConvertModeRequest {
+  string  id          = 1;
+  RunMode target_mode = 2;
+}
+
+message ConvertModeResponse { Run run = 1; }
+
 // ---------- Bidi streaming: Attach ----------
 
 message AttachRequest { bytes data = 1; }
@@ -137,13 +156,15 @@ service OutpostService {
   rpc DropRun(DropRunRequest)         returns (DropRunResponse);
   rpc CleanupRun(CleanupRunRequest)   returns (CleanupRunResponse);
   rpc ServerDoctor(ServerDoctorRequest) returns (ServerDoctorResponse);
+  rpc ConvertMode(ConvertModeRequest)   returns (ConvertModeResponse);
 
   // Client streaming
   rpc Handoff(stream HandoffRequest) returns (HandoffResponse);
 
   // Server streaming
   rpc TailLogs(TailLogsRequest)             returns (stream TailLogsResponse);
-  rpc DownloadPatch(DownloadPatchRequest)   returns (stream DownloadPatchResponse);
+  rpc DownloadPatch(DownloadPatchRequest)       returns (stream DownloadPatchResponse);
+  rpc DownloadSession(DownloadSessionRequest)   returns (stream DownloadSessionResponse);
 
   // Bidi streaming
   rpc Attach(stream AttachRequest) returns (stream AttachResponse);

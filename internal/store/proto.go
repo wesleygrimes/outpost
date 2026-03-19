@@ -15,19 +15,22 @@ func RunToProto(r *Run) *outpostv1.Run {
 	}
 
 	pr := &outpostv1.Run{
-		Id:         r.ID,
-		Name:       r.Name,
-		Mode:       ModeToProto(r.Mode),
-		Status:     StatusToProto(r.Status),
-		BaseSha:    r.BaseSHA,
-		FinalSha:   r.FinalSHA,
-		CreatedAt:  timestamppb.New(r.CreatedAt),
-		Attach:     r.Attach,
-		LogTail:    r.LogTail,
-		PatchReady: r.PatchReady,
-		Branch:     r.Branch,
-		MaxTurns:   int32(r.MaxTurns),
-		Subdir:     r.Subdir,
+		Id:              r.ID,
+		Name:            r.Name,
+		Mode:            ModeToProto(r.Mode),
+		Status:          StatusToProto(r.Status),
+		BaseSha:         r.BaseSHA,
+		FinalSha:        r.FinalSHA,
+		CreatedAt:       timestamppb.New(r.CreatedAt),
+		Attach:          r.Attach,
+		LogTail:         r.LogTail,
+		PatchReady:      r.PatchReady,
+		Branch:          r.Branch,
+		MaxTurns:        int32(r.MaxTurns),
+		Subdir:          r.Subdir,
+		SessionId:       r.SessionID,
+		ForkedSessionId: r.ForkedSessionID,
+		SessionReady:    r.SessionReady,
 	}
 	if r.FinishedAt != nil {
 		pr.FinishedAt = timestamppb.New(*r.FinishedAt)
@@ -41,18 +44,21 @@ func ProtoToRun(pr *outpostv1.Run) *Run {
 		return nil
 	}
 	r := &Run{
-		ID:         pr.GetId(),
-		Name:       pr.GetName(),
-		Mode:       ModeFromProto(pr.GetMode()),
-		Status:     StatusFromProto(pr.GetStatus()),
-		BaseSHA:    pr.GetBaseSha(),
-		FinalSHA:   pr.GetFinalSha(),
-		Attach:     pr.GetAttach(),
-		LogTail:    pr.GetLogTail(),
-		PatchReady: pr.GetPatchReady(),
-		Branch:     pr.GetBranch(),
-		MaxTurns:   int(pr.GetMaxTurns()),
-		Subdir:     pr.GetSubdir(),
+		ID:              pr.GetId(),
+		Name:            pr.GetName(),
+		Mode:            ModeFromProto(pr.GetMode()),
+		Status:          StatusFromProto(pr.GetStatus()),
+		BaseSHA:         pr.GetBaseSha(),
+		FinalSHA:        pr.GetFinalSha(),
+		Attach:          pr.GetAttach(),
+		LogTail:         pr.GetLogTail(),
+		PatchReady:      pr.GetPatchReady(),
+		Branch:          pr.GetBranch(),
+		MaxTurns:        int(pr.GetMaxTurns()),
+		Subdir:          pr.GetSubdir(),
+		SessionID:       pr.GetSessionId(),
+		ForkedSessionID: pr.GetForkedSessionId(),
+		SessionReady:    pr.GetSessionReady(),
 	}
 	if pr.GetCreatedAt() != nil {
 		r.CreatedAt = pr.GetCreatedAt().AsTime()

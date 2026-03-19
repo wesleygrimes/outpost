@@ -32,21 +32,25 @@ const (
 
 // Run holds metadata for a single outpost session.
 type Run struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	Mode       Mode       `json:"mode"`
-	Status     Status     `json:"status"`
-	BaseSHA    string     `json:"base_sha"`
-	FinalSHA   string     `json:"final_sha"`
-	CreatedAt  time.Time  `json:"created_at"`
-	FinishedAt *time.Time `json:"finished_at,omitempty"`
-	Attach     string     `json:"attach"`
-	LogTail    string     `json:"log_tail"`
-	PatchReady bool       `json:"patch_ready"`
-	Branch     string     `json:"branch"`
-	MaxTurns   int        `json:"max_turns"`
-	Subdir     string     `json:"subdir"`
-	Dir        string     `json:"-"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Mode            Mode       `json:"mode"`
+	Status          Status     `json:"status"`
+	BaseSHA         string     `json:"base_sha"`
+	FinalSHA        string     `json:"final_sha"`
+	CreatedAt       time.Time  `json:"created_at"`
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
+	Attach          string     `json:"attach"`
+	LogTail         string     `json:"log_tail"`
+	PatchReady      bool       `json:"patch_ready"`
+	Branch          string     `json:"branch"`
+	MaxTurns        int        `json:"max_turns"`
+	Subdir          string     `json:"subdir"`
+	SessionID       string     `json:"session_id"`
+	ForkedSessionID string     `json:"forked_session_id"`
+	SessionReady    bool       `json:"session_ready"`
+	Dir             string     `json:"-"`
+	Converting      bool       `json:"-"` // true during mode conversion; suppresses OnExit finalization
 }
 
 // Store is a thread-safe in-memory collection of runs.
