@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/store"
+	outpostv1 "github.com/wesleygrimes/outpost/gen/outpost/v1"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/store"
 )
 
 const testToken = "test-token-abc123"

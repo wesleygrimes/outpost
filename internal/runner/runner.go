@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wesgrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/store"
 )
 
 // Timing constants.

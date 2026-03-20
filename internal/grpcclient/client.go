@@ -15,9 +15,9 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
-	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/store"
+	outpostv1 "github.com/wesleygrimes/outpost/gen/outpost/v1"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/store"
 )
 
 const handoffChunkSize = 64 * 1024 // 64 KiB

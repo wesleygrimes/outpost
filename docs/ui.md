@@ -1,31 +1,40 @@
-# Outpost CLI Output Design Spec
+# Outpost UI
 
-> Reference spec for implementing terminal output across all Outpost commands.
-> Each command includes the exact output format, color assignments, and design rationale.
+> The single reference for Outpost's user interface: design system, CLI command output, and (eventually) TUI.
 
 ---
 
 ## Design System
 
+### Principles
+
+- **One screenful.** Key vitals for any command should fit without scrolling.
+- **Greppable.** Log lines and table rows are parseable by standard tools.
+- **Copy-pasteable.** Every suggested command works if pasted directly.
+- **Progressive disclosure.** Dashboard shows summary; drill into a run ID for detail.
+- **Destructive actions confirm.** Show what's at risk and offer the safe alternative as a selection option.
+
 ### Brand Elements
 
-- **Header**: `OUTPOST v0.1.0` (amber, uppercase) — appears as the first line of every structured output block, followed by the command context. The name *is* the brand mark, no symbol prefix needed. Mirrors Vite's `VITE v6.2.2` pattern.
-- **Run IDs**: Short form `op-XXXX` (4 hex chars), displayed in amber
-- **Version**: Always shown next to the brand name in dim/green text
+- **Header**: `OUTPOST v0.1.0` (amber, uppercase) opens every structured output block, followed by the command context on the same line. The name *is* the brand mark, no symbol prefix needed. Mirrors Vite's `VITE v6.2.2` pattern.
+- **Run IDs**: Short form `op-XXXX` (4 hex chars), always amber. These are the primary anchor users type and grep for.
+- **Version**: Always shown next to the brand name in dim/green text.
 
 ### Color Semantics
 
-| Color   | ANSI    | Meaning                        | Used for                              |
-|---------|---------|--------------------------------|---------------------------------------|
-| Amber   | Yellow  | Brand / identity / IDs         | `OUTPOST`, run IDs, column headers    |
-| Green   | Green   | Success / safe / complete      | `✓`, `done`, GET verbs, exit 0        |
-| Cyan    | Cyan    | Active / in-progress           | `⠸ running`, spinner, active turn     |
-| Orange  | Yellow  | Warning / caution              | `⚠`, disk low, dirty tree             |
-| Red     | Red     | Error / destructive / failed   | `✗`, `failed`, DELETE verbs           |
-| Purple  | Magenta | Claude / AI activity           | `claude` log prefix, waiting state    |
-| Blue    | Blue    | Actionable commands / hints    | Next-step suggestions, copy-paste cmds|
-| White   | White   | Primary content / values       | File paths, counts, durations         |
-| Dim     | Gray    | Chrome / labels / secondary    | Timestamps, separators, descriptions  |
+Each color has exactly one meaning. Do not cross-purpose them.
+
+| Color   | ANSI    | Means                        | Used for                               | Never use it for       |
+|---------|---------|------------------------------|----------------------------------------|------------------------|
+| Amber   | Yellow  | Brand / identity / IDs       | `OUTPOST`, run IDs, column headers     | Status or content      |
+| Green   | Green   | Success / complete           | `✓`, `done`, GET verbs, exit 0         | In-progress states     |
+| Cyan    | Cyan    | Active / in-progress         | `⠸ running`, spinner, active turn      | Completed states       |
+| Orange  | Yellow  | Warning / caution            | `⚠`, disk low, dirty tree              | Errors                 |
+| Red     | Red     | Error / destructive / failed | `✗`, `failed`, DELETE verbs            | Warnings               |
+| Purple  | Magenta | Claude / AI activity         | `claude` log prefix, waiting state     | Non-AI content         |
+| Blue    | Blue    | Actionable commands / hints  | Next-step suggestions, copy-paste cmds | Labels or status       |
+| White   | White   | Primary content / values     | File paths, counts, durations          | Chrome or decoration   |
+| Dim     | Gray    | Chrome / labels / secondary  | Timestamps, separators, descriptions   | Primary content        |
 
 ### Status Symbols
 
@@ -40,19 +49,58 @@ Symbols always pair with color so output is readable without color support:
 | `⚠`    | Orange | Warning     |
 | `✗`    | Red    | Failed/Error|
 
+The `OUTPOST` brand name is pure ASCII. All other symbols (`✓` `✗` `⠸` `●` `◉` `⚠` `│` `└` `├`) require UTF-8, which is the baseline requirement. No ASCII fallback mode.
+
+`NO_COLOR` env var and `--no-color` flag strip ANSI escape codes only; symbols and box-drawing characters remain:
+- Symbols carry meaning independently of color (`✓` vs `✗` vs `⚠`)
+- Tables remain readable without color (alignment is structural)
+- Log lines are tab-separated for machine parsing
+
 ### Structural Patterns
 
-- **Checklist blocks**: `OUTPOST v0.1.0` header line, vertical line `│` on the left, `✓`/`✗` prefixed steps, `└` to close
-- **Tables**: Column headers in amber, aligned with spaces (no box drawing for data tables)
+- **Checklist blocks**: `OUTPOST v{version}` header line, vertical line `│` on the left, `✓`/`✗` prefixed steps, `└` to close
+- **Tables**: Column headers in amber, aligned with spaces (no box drawing for data rows)
 - **Next-step hints**: Appear after `└` closer, dimmed label + blue command
 - **Error recovery**: Error on one line, fix command(s) below as copy-pasteable blue text
 - **Confirmation prompts**: `● Selected` in amber, unselected options in dim
+- **Log lines**: Fixed-width prefix `run-id timestamp source content`, tab-separated for machine parsing
+
+### Error Philosophy
+
+- **Stop on first failure.** No partial success ambiguity. Checklist ends at the `✗` line.
+- **Surface the why.** Show Claude's own explanation when a run fails.
+- **Always offer a fix.** Every error includes a copy-pasteable recovery command.
+- **Warnings are specific.** "6 turns of work" not "are you sure?". Show actual dirty files, not just a count.
+
+### Output Modes
+
+| Flag         | Effect                                             |
+|--------------|----------------------------------------------------|
+| `--json`     | Machine-readable JSON, replaces all human output   |
+| `--quiet`    | Essential values only, no chrome                   |
+| `--no-color` | Strip ANSI codes, keep symbols and structure       |
+| `--force`    | Skip confirmation prompts (for scripting)          |
+| `--follow`   | Stream updates in real-time (status, logs)         |
+| `--tail`     | Alias for `--follow` on `logs` command             |
 
 ---
 
-## Server-Side Commands
+## CLI Commands
 
-### `outpost server setup <host>`
+### Output Primitives
+
+These are the building blocks; implement them first:
+
+1. **Checklist renderer** — `OUTPOST v{version}` header, `│` left border, `✓`/`✗`/`⠸`/`⚠` prefixed lines, `└` closer
+2. **Table renderer** — Amber headers, aligned columns, footer summary with `·` separators
+3. **Progress bar** — `████░░░░` style with percentage, used for streaming
+4. **Confirmation prompt** — `●` selected / dim unselected, keyboard navigation
+5. **Next-step hints** — Dim label + blue command, appears after `└` closer
+6. **Log line formatter** — `run-id timestamp source content` with consistent column widths
+
+### Server-Side Commands
+
+#### `outpost server setup <host>`
 
 Provisions a remote server via SSH. Shows a checklist of provisioning steps.
 
@@ -93,12 +141,12 @@ $ outpost server setup 192.168.1.50
 ```
 
 **Design notes:**
-- Checklist stops immediately on first failure — no confusing partial success
+- Checklist stops immediately on first failure
 - Fix command is always copy-pasteable
 - Token output is visually isolated at the bottom of success output
 - Next-step hint follows Vite's pattern
 
-### `outpost serve`
+#### `outpost serve`
 
 Starts the gRPC daemon. Mirrors Vite's dev server "ready" block.
 
@@ -115,10 +163,10 @@ $ outpost serve
 
 **Design notes:**
 - Brand word + version + listen address on one line
-- Key vitals listed below — everything you'd grep for in one screenful
+- Key vitals listed below, everything you'd grep for in one screenful
 - No log output after this unless a request comes in
 
-### `outpost server doctor`
+#### `outpost server doctor`
 
 Health check with two-column vitals and a checklist.
 
@@ -165,11 +213,9 @@ $ outpost server doctor
 - Two-column layout for vitals keeps it scannable
 - Degraded values change color inline (disk turns orange, cert turns red)
 
----
+### Client-Side Commands
 
-## Client-Side Commands
-
-### `outpost login <host:port> <token>`
+#### `outpost login <host:port> <token>`
 
 Saves credentials. Handles TOFU (Trust On First Use) for self-signed certs.
 
@@ -190,7 +236,7 @@ $ outpost login myserver.grimes.pro:9090 op_tk_7f3a...c91d
   ✓ Certificate pinned.
 ```
 
-### `outpost doctor`
+#### `outpost doctor`
 
 Client-side health check.
 
@@ -207,11 +253,9 @@ $ outpost doctor
   └
 ```
 
----
+### Core Workflow Commands
 
-## Core Workflow Commands
-
-### `outpost handoff`
+#### `outpost handoff`
 
 Archives repo + session, streams to server, starts a run.
 
@@ -275,16 +319,16 @@ $ outpost handoff --session-id abc123
 ```
 
 **Design notes:**
-- Run ID is the anchor for all downstream commands — always shown prominently
+- Run ID is the anchor for all downstream commands, always shown prominently
 - Short IDs (op-XXXX) are easier to type than UUIDs
 - Summary line after `└` packs all config into a scannable bar separated by `│`
 - Progress bar for streaming (only long-running step)
 - Dirty tree warning shows actual files, not just a count
 - Error state is one line + recovery paths (two options because "no server" is ambiguous)
 
-### `outpost status`
+#### `outpost status`
 
-**Dashboard (no args) — all runs:**
+**Dashboard (no args), all runs:**
 
 ```
 $ outpost status
@@ -365,11 +409,11 @@ $ outpost status op-f8g9
 - Status uses both color AND symbol for non-color terminal support
 - `--follow` turns detail view into a live feed with per-turn summaries
 - Failed runs surface Claude's own explanation of why it couldn't finish
-- Completed runs show diffstat (+lines −lines) as a preview before pickup
+- Completed runs show diffstat (+lines -lines) as a preview before pickup
 - "waiting" status = interactive mode, needs human input
 - Footer summary line uses `·` separator for quick counts
 
-### `outpost logs <id>`
+#### `outpost logs <id>`
 
 Structured log lines with consistent prefix format: `run-id timestamp source content`.
 
@@ -390,12 +434,12 @@ op-7f3a 10:44:29 claude All tests pass. Completing the session.
 ```
 
 **Design notes:**
-- Every line has the same prefix structure — greppable, parseable
+- Every line has the same prefix structure, greppable and parseable
 - Two source types: `claude` (thinking/reasoning) and `tool` (file ops, bash commands)
 - Tool lines further typed: `Read file`, `Write file`, `bash` with exit codes
 - `--tail` flag follows in real-time (same format, just streaming)
 
-### `outpost pickup <id>`
+#### `outpost pickup <id>`
 
 Downloads patch + forked session from a completed run.
 
@@ -425,7 +469,7 @@ $ outpost pickup op-7f3a
 - Full file list so you see exactly what Claude did before applying
 - Apply command is copy-pasteable at the bottom
 
-### `outpost drop <id>`
+#### `outpost drop <id>`
 
 Stops and discards a run. Destructive action gets a confirmation prompt.
 
@@ -449,7 +493,7 @@ $ outpost drop op-d4e5
 - Offers the safe alternative (pickup first) as a selection option
 - Can be skipped with `--force` flag for scripting
 
-### `outpost convert <id> <mode>`
+#### `outpost convert <id> <mode>`
 
 Switches a running session between interactive and headless.
 
@@ -467,33 +511,6 @@ $ outpost convert op-7f3a interactive
 
 ---
 
-## Implementation Checklist
+## TUI
 
-### Output Primitives (build these first)
-
-1. **Checklist renderer** — `OUTPOST v{version}` header, `│` left border, `✓`/`✗`/`⠸`/`⚠` prefixed lines, `└` closer
-2. **Table renderer** — Amber headers, aligned columns, footer summary with `·` separators
-3. **Progress bar** — `████░░░░` style with percentage, used for streaming
-4. **Confirmation prompt** — `●` selected / dim unselected, keyboard navigation
-5. **Next-step hints** — Dim label + blue command, appears after `└` closer
-6. **Log line formatter** — `run-id timestamp source content` with consistent column widths
-
-### Color/Symbol Mapping
-
-The `OUTPOST` brand name is pure ASCII. All other symbols (`✓` `✗` `⠸` `●` `◉` `⚠` `│` `└` `├`) require UTF-8, which is the baseline requirement. No ASCII fallback mode — if your terminal can't do UTF-8 in 2026, that's on you.
-
-`NO_COLOR` env var and `--no-color` flag strip ANSI escape codes only — symbols and box-drawing characters remain:
-- Symbols carry meaning independently of color (`✓` vs `✗` vs `⚠`)
-- Tables remain readable without color (alignment is structural)
-- Log lines are tab-separated for machine parsing
-
-### Flags That Affect Output
-
-| Flag        | Effect                                           |
-|-------------|--------------------------------------------------|
-| `--json`    | All commands emit JSON instead of formatted output|
-| `--quiet`   | Suppress chrome, only emit essential values       |
-| `--no-color`| Strip ANSI codes                                 |
-| `--force`   | Skip confirmation prompts                        |
-| `--follow`  | Stream updates in real-time (status, logs)        |
-| `--tail`    | Alias for `--follow` on `logs` command            |
+*Coming soon.*

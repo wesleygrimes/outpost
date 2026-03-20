@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
+	outpostv1 "github.com/wesleygrimes/outpost/gen/outpost/v1"
 )
 
 func TestRunToProto_RoundTrip(t *testing.T) {

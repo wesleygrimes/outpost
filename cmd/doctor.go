@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Version is set by ldflags at build time.
@@ -17,23 +18,21 @@ var Version = "dev" //nolint:gochecknoglobals // injected from main via ldflags
 
 // Doctor runs client-side health checks.
 func Doctor() error {
-	printBoxTop("Outpost Doctor", "")
+	cl := ui.NewChecklist("Client Health")
 
-	// Check config.
 	configPath := config.ClientConfigPath()
 	cfg, err := config.LoadClient()
 	if err != nil {
-		printFailItem("Config", configPath)
-		printBoxBottom()
+		cl.Fail("Config " + configPath)
+		cl.Close()
 		return fmt.Errorf("config: %w", err)
 	}
-	printCheckItem("Config", configPath)
+	cl.Success("Config loaded (" + configPath + ")")
 
-	// Check server reachable.
 	client, err := grpcclient.Load()
 	if err != nil {
-		printFailItem("Server", cfg.Server+" unreachable")
-		printBoxBottom()
+		cl.Fail("Server " + cfg.Server + " unreachable")
+		cl.Close()
 		return nil
 	}
 	defer logClose(client)
@@ -42,19 +41,14 @@ func Doctor() error {
 	defer cancel()
 
 	if _, err := client.HealthCheck(ctx); err != nil {
-		printFailItem("Server", cfg.Server+" unreachable")
+		cl.Fail("Server " + cfg.Server + " unreachable")
 	} else {
-		printCheckItem("Server", cfg.Server+" reachable")
+		cl.Success("Server reachable (" + cfg.Server + ")")
 	}
 
-	// CLI version.
-	printCheckItem("CLI version", Version)
-
-	// Skills check.
-	skills := countSkills()
-	printCheckItem("Skills", skills)
-
-	printBoxBottom()
+	cl.Success("Outpost CLI " + Version)
+	cl.Success("Skills " + countSkills())
+	cl.Close()
 	return nil
 }
 

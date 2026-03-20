@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Drop stops and discards a run.
@@ -35,8 +35,9 @@ func Drop(args []string) error {
 		})
 	}
 
-	printHeader()
-	fmt.Printf("\n  Dropped: %s\n", droppedID)
+	ui.Header("Drop " + ui.Amber(droppedID))
+	ui.Errln()
+	ui.Errln("  " + ui.Fail("Run "+droppedID+" stopped and discarded."))
 
 	return nil
 }

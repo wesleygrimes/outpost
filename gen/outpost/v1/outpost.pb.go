@@ -1683,7 +1683,7 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\bTailLogs\x12\x1b.outpost.v1.TailLogsRequest\x1a\x1c.outpost.v1.TailLogsResponse0\x01\x12V\n" +
 	"\rDownloadPatch\x12 .outpost.v1.DownloadPatchRequest\x1a!.outpost.v1.DownloadPatchResponse0\x01\x12\\\n" +
 	"\x0fDownloadSession\x12\".outpost.v1.DownloadSessionRequest\x1a#.outpost.v1.DownloadSessionResponse0\x01\x12C\n" +
-	"\x06Attach\x12\x19.outpost.v1.AttachRequest\x1a\x1a.outpost.v1.AttachResponse(\x010\x01B7Z5github.com/wesgrimes/outpost/gen/outpost/v1;outpostv1b\x06proto3"
+	"\x06Attach\x12\x19.outpost.v1.AttachRequest\x1a\x1a.outpost.v1.AttachResponse(\x010\x01B:Z8github.com/wesleygrimes/outpost/gen/outpost/v1;outpostv1b\x06proto3"
 
 var (
 	file_outpost_v1_outpost_proto_rawDescOnce sync.Once

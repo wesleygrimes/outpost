@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/grpcclient"
-	"github.com/wesgrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Status lists runs or shows detail for a specific run.
@@ -53,13 +53,18 @@ func Status(args []string) error {
 		return printDashboardJSON(runs)
 	}
 
-	printHeader()
+	cfg, _ := config.LoadClient()
+	serverName := ""
+	if cfg != nil {
+		serverName = cfg.Server
+	}
+	ui.Header("Runs on " + serverName)
 	printDashboard(runs)
 	return nil
 }
 
 func followLogs(ctx context.Context, client *grpcclient.Client, id string) error {
-	fmt.Fprintf(os.Stderr, "following run %s...\n", id)
+	ui.Errf("following run %s...\n", id)
 
 	stream, err := client.TailLogs(ctx, id, true)
 	if err != nil {
@@ -69,7 +74,7 @@ func followLogs(ctx context.Context, client *grpcclient.Client, id string) error
 	for {
 		entry, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
-			fmt.Fprintln(os.Stderr, "run completed")
+			ui.Errln("run completed")
 			return nil
 		}
 		if err != nil {
@@ -81,58 +86,55 @@ func followLogs(ctx context.Context, client *grpcclient.Client, id string) error
 
 func printDashboard(runs []*store.Run) {
 	var active, complete, failed, dropped int
-	var running, recent []*store.Run
+	var visible []*store.Run
 
 	for _, r := range runs {
 		switch r.Status {
 		case store.StatusPending, store.StatusRunning:
 			active++
-			running = append(running, r)
+			visible = append(visible, r)
 		case store.StatusComplete:
 			complete++
-			recent = append(recent, r)
+			visible = append(visible, r)
 		case store.StatusFailed:
 			failed++
-			recent = append(recent, r)
+			visible = append(visible, r)
 		case store.StatusDropped:
 			dropped++
 		}
 	}
 
-	fmt.Printf("\n  Active: %d   Complete: %d   Failed: %d   Dropped: %d\n", active, complete, failed, dropped)
-
-	if len(running) == 0 && len(recent) == 0 {
+	if len(visible) == 0 {
+		ui.Errln("\n  No active runs.")
 		return
 	}
 
-	fmt.Println()
-	tw := newTable()
-	_, _ = fmt.Fprintf(tw, "  ID\tSTATUS\tMODE\tBRANCH\tAGE\tPATCH\n")
-	for _, r := range running {
+	ui.Errln()
+	t := ui.NewTable("ID", "Branch", "Mode", "Status", "Age", "Patch")
+	for _, r := range visible {
 		branch := r.Branch
 		if branch == "" {
 			branch = "-"
 		}
-		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t\n",
-			r.ID, r.Status, r.Mode, branch, formatAge(r.CreatedAt))
-	}
-	for _, r := range recent {
 		age := formatAge(r.CreatedAt)
 		if r.FinishedAt != nil {
 			age = formatAge(*r.FinishedAt)
 		}
-		branch := r.Branch
-		if branch == "" {
-			branch = "-"
-		}
-		patch := "no"
+		patch := ""
 		if r.PatchReady {
 			patch = "yes"
 		}
-		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n",
-			r.ID, r.Status, r.Mode, branch, age, patch)
+		t.Row(ui.Amber(r.ID), branch, string(r.Mode), statusSymbol(r.Status), age, patch)
 	}
-	_ = tw.Flush()
+
+	total := active + complete + failed + dropped
+	t.Footer(
+		fmt.Sprintf("%d runs total", total),
+		fmt.Sprintf("%d running", active),
+		fmt.Sprintf("%d done", complete),
+		fmt.Sprintf("%d failed", failed),
+	)
+	t.Render()
 }
 
 type dashboardJSON struct {
@@ -244,44 +246,58 @@ func showRunDetail(ctx context.Context, client *grpcclient.Client, id string, js
 		return printJSON(r)
 	}
 
-	printHeader()
+	statusSym := statusSymbol(r.Status)
+	ui.Header(fmt.Sprintf("Run %s %s %s", ui.Amber(r.ID), ui.Dim("│"), statusSym))
 	printRunDetail(r)
 	return nil
 }
 
 func printRunDetail(r *store.Run) {
-	fmt.Println()
-	printField("Run:", r.ID)
-	printField("Name:", r.Name)
-	printField("Status:", string(r.Status))
-	printField("Mode:", string(r.Mode))
+	ui.Errln()
+	ui.Field("Name", r.Name)
+	ui.Field("Mode", string(r.Mode))
 	if r.Branch != "" {
-		printField("Branch:", r.Branch)
+		ui.Field("Branch", r.Branch)
 	}
 	if r.BaseSHA != "" {
-		printField("Base SHA:", r.BaseSHA)
+		ui.Field("Base SHA", r.BaseSHA)
 	}
 	if r.FinalSHA != "" {
-		printField("Final SHA:", r.FinalSHA)
+		ui.Field("Final SHA", r.FinalSHA)
 	}
 	patch := "no"
 	if r.PatchReady {
 		patch = "yes"
 	}
-	printField("Patch Ready:", patch)
-	printField("Created:", r.CreatedAt.Format("2006-01-02 15:04:05"))
+	ui.Field("Patch Ready", patch)
+	ui.Field("Created", r.CreatedAt.Format("2006-01-02 15:04:05"))
 	if r.FinishedAt != nil {
-		printField("Finished:", r.FinishedAt.Format("2006-01-02 15:04:05"))
+		ui.Field("Finished", r.FinishedAt.Format("2006-01-02 15:04:05"))
 	}
 	if r.Attach != "" {
-		printField("Attach:", r.Attach)
+		ui.Field("Attach", r.Attach)
 	}
 
 	if r.LogTail != "" {
-		fmt.Println()
-		fmt.Println("--- log tail ---")
+		ui.Errln()
+		ui.Errln("  " + ui.Dim("--- log tail ---"))
 		for line := range strings.SplitSeq(r.LogTail, "\n") {
-			fmt.Println(line)
+			ui.Errln("  " + line)
 		}
+	}
+}
+
+func statusSymbol(s store.Status) string {
+	switch s {
+	case store.StatusRunning, store.StatusPending:
+		return ui.Spin(string(s))
+	case store.StatusComplete:
+		return ui.Symbol(ui.SymDot, string(s))
+	case store.StatusFailed:
+		return ui.Fail(string(s))
+	case store.StatusDropped:
+		return ui.Dim(string(s))
+	default:
+		return string(s)
 	}
 }

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 
-	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Logs streams or dumps log output for a run.
@@ -116,7 +116,7 @@ func tailLogs(ctx context.Context, client *grpcclient.Client, id string, lines i
 	}
 
 	// Second pass: follow from current position.
-	fmt.Fprintf(os.Stderr, "--- following ---\n")
+	ui.Errln("--- following ---")
 	followStream, err := client.TailLogs(ctx, id, true)
 	if err != nil {
 		return err
@@ -125,7 +125,7 @@ func tailLogs(ctx context.Context, client *grpcclient.Client, id string, lines i
 	for {
 		entry, recvErr := followStream.Recv()
 		if errors.Is(recvErr, io.EOF) {
-			fmt.Fprintln(os.Stderr, "run completed")
+			ui.Errln("run completed")
 			return nil
 		}
 		if recvErr != nil {

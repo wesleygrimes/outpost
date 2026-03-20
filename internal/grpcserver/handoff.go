@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
-	"github.com/wesgrimes/outpost/internal/runner"
-	"github.com/wesgrimes/outpost/internal/store"
+	outpostv1 "github.com/wesleygrimes/outpost/gen/outpost/v1"
+	"github.com/wesleygrimes/outpost/internal/runner"
+	"github.com/wesleygrimes/outpost/internal/store"
 )
 
 // Handoff receives session data and archive via client streaming, then spawns a session.

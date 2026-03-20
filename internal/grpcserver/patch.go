@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
+	outpostv1 "github.com/wesleygrimes/outpost/gen/outpost/v1"
 )
 
 const chunkSize = 64 * 1024 // 64 KiB

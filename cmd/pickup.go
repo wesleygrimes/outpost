@@ -8,8 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/wesgrimes/outpost/internal/grpcclient"
-	"github.com/wesgrimes/outpost/internal/runner"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/runner"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Pickup downloads a completed patch and cleans up the remote run.
@@ -44,7 +45,7 @@ func Pickup(args []string) error {
 
 	patchPath := filepath.Join(patchDir, id+".patch")
 
-	fmt.Fprintln(os.Stderr, "downloading patch...")
+	ui.Errln("downloading patch...")
 	if err := client.DownloadPatch(ctx, id, patchPath); err != nil {
 		return fmt.Errorf("download patch: %w", err)
 	}
@@ -52,14 +53,14 @@ func Pickup(args []string) error {
 	var sessionID string
 	if r.SessionReady && r.ForkedSessionID != "" {
 		if err := downloadSession(ctx, client, id, r.ForkedSessionID); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: session download failed: %v\n", err)
+			ui.Errf("warning: session download failed: %v\n", err)
 		} else {
 			sessionID = r.ForkedSessionID
 		}
 	}
 
 	if err := client.CleanupRun(ctx, id); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cleanup failed: %v\n", err)
+		ui.Errf("warning: cleanup failed: %v\n", err)
 	}
 
 	if jsonOut {
@@ -73,19 +74,25 @@ func Pickup(args []string) error {
 		return printJSON(result)
 	}
 
-	printHeader()
-	fmt.Println()
-	printField("Patch:", patchPath)
-	fmt.Println()
+	cl := ui.NewChecklist("Pickup " + ui.Amber(id))
+	cl.Success("Downloaded patch (" + patchPath + ")")
+	if sessionID != "" {
+		cl.Success("Downloaded session fork")
+	}
+	cl.Row("")
+	cl.Field("Patch", patchPath)
+	cl.Close()
+	ui.Errln()
 
 	diffStat := exec.Command("git", "diff", "--stat", patchPath)
 	diffStat.Stdout = os.Stdout
 	diffStat.Stderr = os.Stderr
 	_ = diffStat.Run()
 
+	ui.Errln()
+	ui.Hint("Apply", "git apply "+patchPath)
 	if sessionID != "" {
-		fmt.Println()
-		printField("Session:", sessionID)
+		ui.Hint("Resume", "claude --resume "+sessionID)
 	}
 
 	return nil

@@ -4,65 +4,89 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/wesgrimes/outpost/cmd"
+	"github.com/wesleygrimes/outpost/cmd"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // version is set by -ldflags at build time.
 var version = "dev"
 
 func main() {
-	// Inject version into cmd package.
 	cmd.Version = version
+	ui.Init(version)
 
-	if len(os.Args) < 2 {
+	args := extractGlobalFlags(os.Args[1:])
+
+	if len(args) < 1 {
 		printUsage()
 		os.Exit(1)
 	}
 
+	subcmd := args[0]
+	subargs := args[1:]
 	var err error
 
-	switch os.Args[1] {
+	switch subcmd {
 	// Server commands.
 	case "server":
-		err = cmd.Server(os.Args[2:])
+		err = cmd.Server(subargs)
 	case "serve":
 		err = cmd.Serve()
 
 	// Client commands.
 	case "login":
-		err = cmd.Login(os.Args[2:])
+		err = cmd.Login(subargs)
 	case "doctor":
 		err = cmd.Doctor()
 	case "handoff":
-		err = cmd.Handoff(os.Args[2:])
+		err = cmd.Handoff(subargs)
 	case "status":
-		err = cmd.Status(os.Args[2:])
+		err = cmd.Status(subargs)
 	case "logs":
-		err = cmd.Logs(os.Args[2:])
+		err = cmd.Logs(subargs)
 	case "pickup":
-		err = cmd.Pickup(os.Args[2:])
+		err = cmd.Pickup(subargs)
 	case "drop":
-		err = cmd.Drop(os.Args[2:])
+		err = cmd.Drop(subargs)
 	case "convert":
-		err = cmd.Convert(os.Args[2:])
+		err = cmd.Convert(subargs)
 
 	// Meta.
 	case "version":
 		fmt.Println(version)
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown command %q\n", os.Args[1])
+		ui.Errf("error: unknown command %q\n", subcmd)
 		printUsage()
 		os.Exit(1)
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		ui.Errf("error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
+// extractGlobalFlags strips --no-color, --quiet, and --force from args
+// and applies them to the ui package. Remaining args are returned.
+func extractGlobalFlags(args []string) []string {
+	remaining := make([]string, 0, len(args))
+	for _, arg := range args {
+		switch arg {
+		case "--no-color":
+			ui.SetColor(false)
+		case "--quiet", "-q":
+			ui.QuietMode = true
+		case "--force":
+			ui.ForceMode = true
+		default:
+			remaining = append(remaining, arg)
+		}
+	}
+	return remaining
+}
+
 func printUsage() {
-	fmt.Fprintln(os.Stderr, `Usage: outpost <command>
+	ui.Errln(`Usage: outpost <command> [flags]
 
 Server commands:
   server setup [host]  Provision a server (local or remote via SSH)
@@ -80,5 +104,10 @@ Client commands:
   convert <id> <mode>  Convert between interactive/headless
 
 Meta:
-  version              Print version`)
+  version              Print version
+
+Global flags:
+  --no-color           Disable color output
+  --quiet, -q          Suppress non-essential output
+  --force              Skip confirmation prompts`)
 }

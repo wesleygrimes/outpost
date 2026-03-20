@@ -1,15 +1,70 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none">
-  <!-- Signal arcs -->
-  <path d="M60 52 A50 50 0 0 1 140 52" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.25"/>
-  <path d="M70 62 A38 38 0 0 1 130 62" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.45"/>
-  <path d="M80 72 A25 25 0 0 1 120 72" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Badge background - rich dark forest -->
+  <circle cx="100" cy="100" r="96" fill="#1B2E1B"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#7A8C5A" stroke-width="5"/>
+  <circle cx="100" cy="100" r="90" fill="none" stroke="#5A6E3A" stroke-width="1"/>
 
-  <!-- Beacon -->
-  <circle cx="100" cy="88" r="14" fill="#F59E0B"/>
+  <!-- Stars - warm cream -->
+  <circle cx="42" cy="38" r="1.5" fill="#D4C4A0" opacity="0.45"/>
+  <circle cx="158" cy="34" r="1.5" fill="#D4C4A0" opacity="0.45"/>
+  <circle cx="72" cy="28" r="1.2" fill="#D4C4A0" opacity="0.3"/>
+  <circle cx="132" cy="25" r="1.2" fill="#D4C4A0" opacity="0.3"/>
+  <circle cx="100" cy="22" r="1.4" fill="#D4C4A0" opacity="0.35"/>
+  <circle cx="55" cy="52" r="1" fill="#D4C4A0" opacity="0.2"/>
+  <circle cx="148" cy="48" r="1" fill="#D4C4A0" opacity="0.2"/>
 
-  <!-- Tower body -->
-  <path d="M90 102 L84 162 L116 162 L110 102 Z" fill="#F59E0B"/>
+  <!-- Mountains - dark silhouette layer -->
+  <path d="M8 138 L40 78 L58 100 L82 65 L105 95 L125 70 L148 98 L165 80 L192 138 Z" fill="#243524" opacity="0.8"/>
+  <!-- Mountains - lighter ridge -->
+  <path d="M8 138 L50 88 L70 108 L100 72 L130 108 L155 88 L192 138 Z" fill="none" stroke="#4A5E34" stroke-width="1.5" opacity="0.5"/>
 
-  <!-- Base platform -->
-  <rect x="74" y="162" width="52" height="10" rx="4" fill="#F59E0B"/>
+  <!-- Far tree line -->
+  <polygon points="18,138 24,118 30,138" fill="#2E4428" opacity="0.7"/>
+  <polygon points="26,138 34,112 42,138" fill="#3A5232" opacity="0.7"/>
+  <polygon points="155,138 163,112 171,138" fill="#3A5232" opacity="0.7"/>
+  <polygon points="165,138 172,118 179,138" fill="#2E4428" opacity="0.7"/>
+
+  <!-- Near pine trees - left cluster -->
+  <polygon points="34,138 42,114 50,138" fill="#4A6B35" opacity="0.7"/>
+  <polygon points="46,138 56,104 66,138" fill="#567A3E" opacity="0.8"/>
+  <polygon points="58,138 65,116 72,138" fill="#4A6B35" opacity="0.65"/>
+
+  <!-- Near pine trees - right cluster -->
+  <polygon points="128,138 135,116 142,138" fill="#4A6B35" opacity="0.65"/>
+  <polygon points="134,138 144,104 154,138" fill="#567A3E" opacity="0.8"/>
+  <polygon points="150,138 158,114 166,138" fill="#4A6B35" opacity="0.7"/>
+
+  <!-- Ground area -->
+  <ellipse cx="100" cy="142" rx="60" ry="8" fill="#2A3E22" opacity="0.5"/>
+
+  <!-- Tent left -->
+  <path d="M78 138 L86 124 L94 138 Z" fill="#C4A060" opacity="0.85"/>
+  <line x1="86" y1="124" x2="86" y2="138" stroke="#1B2E1B" stroke-width="0.8"/>
+
+  <!-- Tent right -->
+  <path d="M106 138 L114 124 L122 138 Z" fill="#B8945A" opacity="0.85"/>
+  <line x1="114" y1="124" x2="114" y2="138" stroke="#1B2E1B" stroke-width="0.8"/>
+
+  <!-- Small tent behind -->
+  <path d="M94 136 L100 126 L106 136 Z" fill="#A8864E" opacity="0.7"/>
+  <line x1="100" y1="126" x2="100" y2="136" stroke="#1B2E1B" stroke-width="0.6"/>
+
+  <!-- Campfire -->
+  <ellipse cx="100" cy="143" rx="4" ry="1.5" fill="#5A3A1A" opacity="0.5"/>
+  <!-- Fire glow -->
+  <ellipse cx="100" cy="140" rx="6" ry="4" fill="#D4702A" opacity="0.15"/>
+  <!-- Flames -->
+  <path d="M97 143 Q96 139 98 137 Q99 135 100 133 Q101 135 102 137 Q104 139 103 143 Z" fill="#D4702A" opacity="0.8"/>
+  <path d="M98.5 143 Q98 140 99.5 138 Q100 136.5 100 135 Q100 136.5 100.5 138 Q102 140 101.5 143 Z" fill="#E8A84B" opacity="0.9"/>
+  <!-- Tiny sparks -->
+  <circle cx="98" cy="132" r="0.6" fill="#E8A84B" opacity="0.5"/>
+  <circle cx="102" cy="130" r="0.5" fill="#D4702A" opacity="0.4"/>
+
+  <!-- OUTPOST text - arched along bottom inside badge -->
+  <defs>
+    <path id="textArc" d="M38 155 A68 68 0 0 0 162 155"/>
+  </defs>
+  <text font-family="'Trebuchet MS', 'Arial', sans-serif" font-weight="bold" font-size="17" fill="#D4C4A0" letter-spacing="6">
+    <textPath href="#textArc" startOffset="50%" text-anchor="middle">OUTPOST</textPath>
+  </text>
 </svg>

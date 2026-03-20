@@ -17,8 +17,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Login connects to an Outpost server and saves credentials.
@@ -54,7 +55,7 @@ func Login(args []string) error {
 	}
 
 	// Try system TLS first (works behind Traefik with real certs).
-	fmt.Fprint(os.Stderr, "Connecting... ")
+	ui.Errf("Connecting... ")
 	if err := tryHealthCheck(target, token, nil); err == nil {
 		return saveAndVerify(clientCfg)
 	}
@@ -94,8 +95,8 @@ func saveAndVerify(cfg *config.ClientConfig) error {
 	if err != nil {
 		return fmt.Errorf("health check failed: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "Connected: %s\n", status)
-	fmt.Fprintf(os.Stderr, "Credentials saved to %s\n", config.ClientConfigPath())
+	ui.Errf("Connected: %s\n", status)
+	ui.Errf("Credentials saved to %s\n", config.ClientConfigPath())
 	return nil
 }
 

@@ -23,7 +23,7 @@ builds:
     ldflags:
       - -s -w
       - -X main.version={{ .Tag }}
-      - -X github.com/wesgrimes/outpost/internal/grpcserver.Version={{ .Tag }}
+      - -X github.com/wesleygrimes/outpost/internal/grpcserver.Version={{ .Tag }}
 
 archives:
   - formats:

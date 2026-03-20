@@ -1,7 +1,7 @@
 GOLANGCI_LINT ?= $(shell bash -c 'for p in $$(type -aP golangci-lint); do if "$$p" version 2>&1 | grep -q "^golangci-lint has version [2-9]"; then echo "$$p"; break; fi; done')
 GORELEASER   ?= $(shell command -v goreleaser 2>/dev/null)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS      := -ldflags "-s -w -X main.version=$(VERSION) -X github.com/wesgrimes/outpost/internal/grpcserver.Version=$(VERSION)"
+LDFLAGS      := -ldflags "-s -w -X main.version=$(VERSION) -X github.com/wesleygrimes/outpost/internal/grpcserver.Version=$(VERSION)"
 
 .PHONY: all build build-linux build-cross release proto lint fmt vet test check ci clean \
        wt-new wt-list wt-remove wt-prune

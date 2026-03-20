@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/wesgrimes/outpost/internal/grpcclient"
-	"github.com/wesgrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Convert changes a running session between interactive and headless mode.
@@ -38,7 +38,7 @@ func Convert(args []string) error {
 	}
 	defer logClose(client)
 
-	fmt.Fprintf(os.Stderr, "converting run %s to %s...\n", id, targetMode)
+	ui.Errf("converting run %s to %s...\n", id, targetMode)
 
 	r, err := client.ConvertMode(context.Background(), id, store.ModeToProto(targetMode))
 	if err != nil {
@@ -54,13 +54,13 @@ func Convert(args []string) error {
 		})
 	}
 
-	printHeader()
-	fmt.Println()
-	printField("Run:", r.ID)
-	printField("Mode:", string(r.Mode))
-	printField("Status:", string(r.Status))
+	ui.Header(fmt.Sprintf("Convert %s %s %s", ui.Amber(r.ID), ui.Dim("→"), string(r.Mode)))
+	ui.Errln()
+	ui.Field("Run", ui.Amber(r.ID))
+	ui.Field("Mode", string(r.Mode))
+	ui.Field("Status", string(r.Status))
 	if r.Attach != "" {
-		printField("Attach:", r.Attach)
+		ui.Field("Attach", r.Attach)
 	}
 
 	return nil

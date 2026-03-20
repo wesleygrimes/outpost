@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wesgrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/store"
 )
 
 func TestBuildClaudeCmd_Headless_Plan(t *testing.T) {

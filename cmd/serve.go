@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/grpcserver"
-	"github.com/wesgrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/grpcserver"
+	"github.com/wesleygrimes/outpost/internal/store"
 )
 
 // Serve loads config, creates the gRPC server, and handles signals.

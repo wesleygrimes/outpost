@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package outpost.v1;
 
-option go_package = "github.com/wesgrimes/outpost/gen/outpost/v1;outpostv1";
+option go_package = "github.com/wesleygrimes/outpost/gen/outpost/v1;outpostv1";
 
 import "google/protobuf/timestamp.proto";
 

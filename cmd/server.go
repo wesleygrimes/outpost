@@ -22,8 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wesgrimes/outpost/internal/config"
-	"github.com/wesgrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/config"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // ServerSetup configures a server, locally or remotely via SSH.
@@ -56,8 +57,9 @@ func localServerSetup(jsonOutput bool) error {
 	tlsDir := filepath.Join(base, "tls")
 	runsDir := filepath.Join(base, "runs")
 
+	var cl *ui.Checklist
 	if !jsonOutput {
-		printBoxTop("Outpost Server Setup", "")
+		cl = ui.NewChecklist("Server Setup")
 	}
 
 	for _, d := range []string{base, tlsDir, runsDir} {
@@ -71,25 +73,23 @@ func localServerSetup(jsonOutput bool) error {
 		return err
 	}
 
-	if !jsonOutput {
-		printCheckItem("Config", filepath.Join(base, "config.yaml"))
-		printCheckItem("TLS certs", tlsDir)
+	if cl != nil {
+		cl.Success("Config " + filepath.Join(base, "config.yaml"))
+		cl.Success("TLS certs generated (" + tlsDir + ")")
 	}
 
-	// Check prerequisites.
 	prereqs := checkPrerequisites()
-	if !jsonOutput {
-		printCheckItem("Prerequisites", prereqs)
+	if cl != nil {
+		cl.Success("Prerequisites " + prereqs)
 	}
 
-	// Install systemd on Linux.
 	if runtime.GOOS == "linux" {
 		if err := installSystemd(); err != nil {
-			if !jsonOutput {
-				printFailItem("Systemd", err.Error())
+			if cl != nil {
+				cl.Fail("Systemd " + err.Error())
 			}
-		} else if !jsonOutput {
-			printCheckItem("Systemd", "outpost.service enabled and started")
+		} else if cl != nil {
+			cl.Success("Systemd outpost.service enabled and started")
 		}
 	}
 
@@ -97,7 +97,11 @@ func localServerSetup(jsonOutput bool) error {
 		return printSetupJSON(cfg, tlsDir, base)
 	}
 
-	printSetupSummary(cfg)
+	hostname, _ := os.Hostname()
+	cl.Row("")
+	cl.CloseWith("Ready. Token: " + cfg.Token)
+	ui.Errln()
+	ui.Hint("Connect", fmt.Sprintf("outpost login %s:%d %s", hostname, cfg.Port, cfg.Token))
 	return nil
 }
 
@@ -143,68 +147,55 @@ func printSetupJSON(cfg *config.ServerConfig, tlsDir, base string) error {
 	return nil
 }
 
-func printSetupSummary(cfg *config.ServerConfig) {
-	fmt.Fprintln(os.Stderr)
-	printBoxRow("  Token: " + cfg.Token)
-	printBoxRow("  To connect from another machine:")
-	hostname, _ := os.Hostname()
-	printBoxRow(fmt.Sprintf("    outpost login %s:%d %s", hostname, cfg.Port, cfg.Token))
-	printBoxBottom()
-}
-
 func remoteServerSetup(sshTarget string) error {
 	if err := validateSSHHost(sshTarget); err != nil {
 		return err
 	}
 
-	// Start a ControlMaster so all ssh/scp reuse one connection.
 	cleanup, err := startSSHControlMaster(sshTarget)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	printBoxTop("Outpost Server Setup", sshTarget)
-	printCheckItem("SSH", sshTarget+" connected")
+	cl := ui.NewChecklist("Provisioning " + sshTarget)
+	cl.Success("SSH connection established (" + sshTarget + ")")
 
 	goarch, err := detectRemoteArch(sshTarget)
 	if err != nil {
 		return err
 	}
-	printCheckItem("Detected", "linux/"+goarch)
+	cl.Success("Detected linux/" + goarch)
 
-	if err := buildAndUpload(sshTarget, goarch); err != nil {
+	if err := buildAndUpload(cl, sshTarget, goarch); err != nil {
 		return err
 	}
 
-	ensureRemoteUser(sshTarget)
+	ensureRemoteUser(cl, sshTarget)
 	installRemotePrereqs(sshTarget)
-	printCheckItem("Prerequisites", "tmux, node, claude")
+	cl.Success("Prerequisites installed (tmux, node, claude)")
 
 	setupResult, err := runRemoteSetup(sshTarget)
 	if err != nil {
 		return err
 	}
-	printCheckItem("Config", setupResult["config"])
+	cl.Success("Config " + setupResult["config"])
 
 	if err := installRemoteSystemd(sshTarget); err != nil {
-		printFailItem("Systemd", err.Error())
+		cl.Fail("Systemd " + err.Error())
 	} else {
-		printCheckItem("Systemd", "outpost.service enabled and started")
+		cl.Success("Systemd outpost.service enabled and started")
 	}
 
-	// Resolve the SSH alias to an actual reachable address.
 	remoteAddr := resolveSSHHostname(sshTarget)
 
-	saveRemoteCredentials(sshTarget, remoteAddr, setupResult)
-	verifyRemoteConnection()
+	saveRemoteCredentials(cl, sshTarget, remoteAddr, setupResult)
+	verifyRemoteConnection(cl)
 
-	fmt.Fprintln(os.Stderr)
-	printBoxRow("  This machine is already connected.")
-	printBoxRow("")
-	printBoxRow("  To connect from another machine:")
-	printBoxRow("    outpost login " + remoteAddr + ":" + setupResult["port"] + " " + setupResult["token"])
-	printBoxBottom()
+	cl.Row("")
+	cl.CloseWith("Ready. This machine is already connected.")
+	ui.Errln()
+	ui.Hint("Connect", "outpost login "+remoteAddr+":"+setupResult["port"]+" "+setupResult["token"])
 
 	return nil
 }
@@ -223,7 +214,7 @@ func detectRemoteArch(sshTarget string) (string, error) {
 
 const releaseBaseURL = "https://git.grimes.pro/wesleygrimes/outpost"
 
-func buildAndUpload(sshTarget, goarch string) error {
+func buildAndUpload(cl *ui.Checklist, sshTarget, goarch string) error {
 	binaryName := "outpost-linux-" + goarch
 	binPath := filepath.Join(os.TempDir(), binaryName)
 
@@ -244,7 +235,7 @@ func buildAndUpload(sshTarget, goarch string) error {
 	if out, err := dlCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("download %s: %w: %s", downloadURL, err, out)
 	}
-	printCheckItem("Binary", version+" linux/"+goarch)
+	cl.Success("Binary " + version + " linux/" + goarch)
 
 	if err := scpFile(binPath, sshTarget, "/tmp/outpost-upload"); err != nil {
 		return fmt.Errorf("upload: %w", err)
@@ -254,19 +245,18 @@ func buildAndUpload(sshTarget, goarch string) error {
 	if _, err := sshRun(sshTarget, "sudo mv /tmp/outpost-upload /usr/local/bin/outpost && sudo chmod 755 /usr/local/bin/outpost"); err != nil {
 		return fmt.Errorf("install: %w", err)
 	}
-	printCheckItem("Installed", "/usr/local/bin/outpost")
+	cl.Success("Installed /usr/local/bin/outpost")
 	return nil
 }
 
 const serviceUser = "outpost"
 
-func ensureRemoteUser(sshTarget string) {
-	// Create a dedicated non-root user for the service.
+func ensureRemoteUser(cl *ui.Checklist, sshTarget string) {
 	_, _ = sshRun(sshTarget, fmt.Sprintf(
 		"id %s >/dev/null 2>&1 || sudo useradd -r -m -s /bin/bash %s",
 		serviceUser, serviceUser,
 	))
-	printCheckItem("User", serviceUser)
+	cl.Success("User " + serviceUser)
 }
 
 func installRemoteSystemd(sshTarget string) error {
@@ -317,7 +307,7 @@ func runRemoteSetup(sshTarget string) (map[string]string, error) {
 	return result, nil
 }
 
-func saveRemoteCredentials(sshAlias, remoteAddr string, setupResult map[string]string) {
+func saveRemoteCredentials(cl *ui.Checklist, sshAlias, remoteAddr string, setupResult map[string]string) {
 	caPath := setupResult["ca"]
 	if caPath == "" {
 		return
@@ -340,14 +330,14 @@ func saveRemoteCredentials(sshAlias, remoteAddr string, setupResult map[string]s
 		CACert: localCAPath,
 	}
 	if err := clientCfg.Save(); err == nil {
-		printCheckItem("Credentials", "saved to "+config.ClientConfigDir())
+		cl.Success("Credentials saved to " + config.ClientConfigDir())
 	}
 }
 
-func verifyRemoteConnection() {
+func verifyRemoteConnection(cl *ui.Checklist) {
 	client, err := grpcclient.Load()
 	if err != nil {
-		printFailItem("Connection", err.Error())
+		cl.Fail("Connection " + err.Error())
 		return
 	}
 	defer logClose(client)
@@ -356,9 +346,9 @@ func verifyRemoteConnection() {
 	defer cancel()
 
 	if _, err := client.HealthCheck(ctx); err != nil {
-		printFailItem("Connection", err.Error())
+		cl.Fail("Connection " + err.Error())
 	} else {
-		printCheckItem("Connection", "healthy")
+		cl.Success("Connection healthy")
 	}
 }
 
@@ -384,27 +374,28 @@ func ServerDoctor(args []string) error {
 		serverName = cfg.Server
 	}
 
-	printBoxTop("Outpost Server Doctor", serverName)
-	printCheckItem("Version", result.Version)
-	printCheckItem("Uptime", result.Uptime)
-	printCheckItem("Disk (runs)", result.DiskFree)
+	cl := ui.NewChecklist("Server Health " + serverName)
+	cl.Field("Version", result.Version)
+	cl.Field("Uptime", result.Uptime)
+	cl.Field("Disk (runs)", result.DiskFree)
+	cl.Row("")
 
 	if result.ClaudeInstalled {
-		printCheckItem("Claude Code", "installed")
+		cl.Success("Claude Code installed")
 	} else {
-		printFailItem("Claude Code", "not found")
+		cl.Fail("Claude Code not found")
 	}
 
 	if result.TmuxInstalled {
-		printCheckItem("tmux", "installed")
+		cl.Success("tmux installed")
 	} else {
-		printFailItem("tmux", "not found")
+		cl.Fail("tmux not found")
 	}
 
-	printCheckItem("Runs", fmt.Sprintf("%d active / %d max, %d total",
+	cl.Success(fmt.Sprintf("Runs %d active / %d max, %d total",
 		result.ActiveRuns, result.MaxRuns, result.TotalRuns))
 
-	printBoxBottom()
+	cl.Close()
 	return nil
 }
 
@@ -501,7 +492,7 @@ func resolveSSHHostname(alias string) string {
 func validateSSHHost(target string) error {
 	// If it contains @, a dot, or a colon, it's not a plain Host alias.
 	if strings.ContainsAny(target, "@.:") {
-		fmt.Fprintf(os.Stderr, `outpost requires an SSH config Host entry.
+		ui.Errf(`outpost requires an SSH config Host entry.
 
 Add this to ~/.ssh/config:
 

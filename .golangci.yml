@@ -100,7 +100,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/wesgrimes/outpost)
+        - prefix(github.com/wesleygrimes/outpost)
 
 issues:
   max-same-issues: 0

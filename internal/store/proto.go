@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	outpostv1 "github.com/wesgrimes/outpost/gen/outpost/v1"
+	outpostv1 "github.com/wesleygrimes/outpost/gen/outpost/v1"
 )
 
 // RunToProto converts a store Run to a proto Run.

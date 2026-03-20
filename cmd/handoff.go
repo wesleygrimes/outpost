@@ -8,11 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
+	"time"
 
-	"github.com/wesgrimes/outpost/internal/grpcclient"
-	"github.com/wesgrimes/outpost/internal/runner"
-	"github.com/wesgrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/grpcclient"
+	"github.com/wesleygrimes/outpost/internal/runner"
+	"github.com/wesleygrimes/outpost/internal/store"
+	"github.com/wesleygrimes/outpost/internal/ui"
 )
 
 // Handoff creates an archive and streams it to the Outpost server.
@@ -51,6 +52,8 @@ func Handoff(args []string) error {
 	}
 	defer logClose(client)
 
+	pb := ui.NewProgress("Streaming to server")
+	var lastTotal int64
 	result, err := client.Handoff(context.Background(), archivePath, &grpcclient.HandoffMeta{
 		SessionID:    *sessionID,
 		SessionJSONL: sessionJSONL,
@@ -60,14 +63,14 @@ func Handoff(args []string) error {
 		MaxTurns:     int32(*maxTurns),
 		Subdir:       *subdir,
 	}, func(sent, total int64) {
-		fmt.Fprintf(os.Stderr, "\ruploading... %s / %s",
-			formatMB(sent), formatMB(total))
+		lastTotal = total
+		pb.Update(sent, total)
 	})
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(os.Stderr)
+	pb.Done(fmt.Sprintf("Streamed (%s in %s)", ui.FormatBytes(lastTotal), formatDuration(pb.Elapsed())))
 
 	if *jsonOut {
 		return printJSON(map[string]string{
@@ -77,13 +80,16 @@ func Handoff(args []string) error {
 		})
 	}
 
-	printHeader()
-	fmt.Println()
-	printField("Run:", result.ID)
-	printField("Status:", string(result.Status))
+	ui.Header("Handoff")
+	ui.Errln()
+	ui.Field("Run", ui.Amber(result.ID))
+	ui.Field("Status", string(result.Status))
 	if result.Attach != "" {
-		printField("Attach:", result.Attach)
+		ui.Field("Attach", result.Attach)
 	}
+	ui.Errln()
+	ui.Hint("Watch", "outpost status "+result.ID+" --follow")
+	ui.Hint("Logs", "outpost logs "+result.ID+" --tail")
 
 	return nil
 }
@@ -112,8 +118,11 @@ func readSessionJSONL(sessionID string) ([]byte, error) {
 	return data, nil
 }
 
-func formatMB(b int64) string {
-	return strconv.FormatFloat(float64(b)/1024/1024, 'f', 1, 64) + " MB"
+func formatDuration(d time.Duration) string {
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	return fmt.Sprintf("%.1fs", d.Seconds())
 }
 
 func createArchive() (string, error) {
