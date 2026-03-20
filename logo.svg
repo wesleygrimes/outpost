@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none">
+  <!-- Signal arcs -->
+  <path d="M60 52 A50 50 0 0 1 140 52" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.25"/>
+  <path d="M70 62 A38 38 0 0 1 130 62" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.45"/>
+  <path d="M80 72 A25 25 0 0 1 120 72" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.7"/>
+
+  <!-- Beacon -->
+  <circle cx="100" cy="88" r="14" fill="#F59E0B"/>
+
+  <!-- Tower body -->
+  <path d="M90 102 L84 162 L116 162 L110 102 Z" fill="#F59E0B"/>
+
+  <!-- Base platform -->
+  <rect x="74" y="162" width="52" height="10" rx="4" fill="#F59E0B"/>
+</svg>
