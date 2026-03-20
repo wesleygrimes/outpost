@@ -29,3 +29,7 @@ make fmt
 ```
 
 Uses gofumpt (stricter than gofmt) via golangci-lint.
+
+## CLI Output
+
+All terminal output must follow [docs/cli-output-guidelines.md](docs/cli-output-guidelines.md). Full per-command mockups are in [OUTPOST_CLI_OUTPUT_SPEC.md](OUTPOST_CLI_OUTPUT_SPEC.md).
