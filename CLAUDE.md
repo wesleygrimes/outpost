@@ -1,6 +1,6 @@
 # Outpost
 
-Remote Claude Code session runner. Single Go binary with three subcommands: `setup`, `serve`, `runs`.
+Remote Claude Code session runner. Single Go binary, two roles: server (`serve`) and client (`handoff`, `status`, `logs`, `pickup`, `drop`).
 
 ## CI / Pre-commit
 

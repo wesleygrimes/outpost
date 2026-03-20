@@ -49,7 +49,7 @@ outpost server setup myserver
 outpost login outpost.grimes.pro:7600 <token>
 
 # Hand off work
-outpost handoff --plan plan.md --mode headless --branch feat/auth
+outpost handoff --session-id <uuid> --mode headless --branch feat/auth
 
 # Check status
 outpost status
@@ -75,7 +75,7 @@ outpost pickup <run-id>
 |---------|-------------|
 | `outpost login <host> <token>` | Connect to a server |
 | `outpost doctor` | Check client health |
-| `outpost handoff --plan <path>` | Push work to the server |
+| `outpost handoff --session-id <uuid>` | Push work to the server |
 | `outpost status` | Dashboard with active runs and history |
 | `outpost status <id>` | Single run detail |
 | `outpost status <id> --follow` | Tail logs live |
