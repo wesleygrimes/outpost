@@ -64,16 +64,17 @@ func (r *Registry) has(id string) bool {
 
 // SpawnConfig holds parameters for launching a session.
 type SpawnConfig struct {
-	RunID     string
-	RepoDir   string
-	PlanPath  string
-	SessionID string // Claude session UUID to resume (mutually exclusive with PlanPath)
-	Continue  bool   // Use --continue to resume the most recent session (for mode conversion)
-	LogPath   string
-	Mode      store.Mode
-	MaxTurns  int
-	OnExit    func(exitCode int)
-	Registry  *Registry
+	RunID       string
+	RepoDir     string
+	PlanPath    string
+	SessionID   string // Claude session UUID to resume (mutually exclusive with PlanPath)
+	Continue    bool   // Use --continue to resume the most recent session (fallback for mode conversion)
+	ForkSession bool   // Use --fork-session when resuming (initial handoff only)
+	LogPath     string
+	Mode        store.Mode
+	MaxTurns    int
+	OnExit      func(exitCode int)
+	Registry    *Registry
 }
 
 // BuildClaudeCmd constructs the claude CLI invocation string.
@@ -119,24 +120,35 @@ func buildPlanCmd(cfg *SpawnConfig, maxTurns int) string {
 func buildResumeCmd(cfg *SpawnConfig, maxTurns int) string {
 	switch cfg.Mode {
 	case store.ModeHeadless:
-		// Two-phase: compact, then work
-		compact := fmt.Sprintf(
-			"claude --resume %s --fork-session --print -p %q --permission-mode bypassPermissions",
+		if cfg.ForkSession {
+			// Two-phase: compact, then work (initial handoff)
+			compact := fmt.Sprintf(
+				"claude --resume %s --fork-session --print -p %q --permission-mode bypassPermissions",
+				cfg.SessionID,
+				"/compact focus on the current task and next steps",
+			)
+			work := fmt.Sprintf(
+				"claude --continue --print -p %q --permission-mode bypassPermissions --max-turns %d",
+				"Continue working. Full conversation context preserved via session handoff.",
+				maxTurns,
+			)
+			return compact + " && " + work
+		}
+		// Simple resume without fork (mode conversion)
+		return fmt.Sprintf(
+			"claude --resume %s --print -p %q --permission-mode bypassPermissions --max-turns %d",
 			cfg.SessionID,
-			"/compact focus on the current task and next steps",
-		)
-		work := fmt.Sprintf(
-			"claude --continue --print -p %q --permission-mode bypassPermissions --max-turns %d",
-			"Continue working. Full conversation context preserved via session handoff.",
+			"Continue working. Mode converted to headless.",
 			maxTurns,
 		)
-		return compact + " && " + work
 
 	case store.ModeInteractive, "":
-		return fmt.Sprintf(
-			"claude --resume %s --fork-session --permission-mode bypassPermissions --max-turns %d",
-			cfg.SessionID, maxTurns,
-		)
+		cmd := "claude --resume " + cfg.SessionID
+		if cfg.ForkSession {
+			cmd += " --fork-session"
+		}
+		cmd += fmt.Sprintf(" --permission-mode bypassPermissions --max-turns %d", maxTurns)
+		return cmd
 	}
 
 	panic("unreachable: unknown mode " + string(cfg.Mode))
@@ -268,6 +280,38 @@ func Stop(reg *Registry, runID string, mode store.Mode) {
 		_ = exec.Command("tmux", "kill-session", "-t", runID).Run()
 	case store.ModeHeadless:
 		stopHeadless(reg, runID)
+	}
+}
+
+const gracefulStopTimeout = 10 * time.Second
+
+// GracefulStopInteractive sends Ctrl-C and /exit to an interactive tmux session,
+// giving Claude time to save session state. Falls back to kill-session on timeout.
+func GracefulStopInteractive(runID string) {
+	// Interrupt any in-progress work.
+	_ = exec.Command("tmux", "send-keys", "-t", runID, "C-c").Run()
+	time.Sleep(500 * time.Millisecond)
+	_ = exec.Command("tmux", "send-keys", "-t", runID, "C-c").Run()
+	time.Sleep(500 * time.Millisecond)
+
+	// Ask Claude to exit cleanly.
+	_ = exec.Command("tmux", "send-keys", "-t", runID, "/exit", "Enter").Run()
+
+	// Wait for session to end.
+	deadline := time.After(gracefulStopTimeout)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-deadline:
+			_ = exec.Command("tmux", "kill-session", "-t", runID).Run()
+			return
+		case <-ticker.C:
+			if err := exec.Command("tmux", "has-session", "-t", runID).Run(); err != nil {
+				return
+			}
+		}
 	}
 }
 

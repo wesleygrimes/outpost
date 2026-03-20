@@ -242,14 +242,15 @@ func (s *Server) spawnRun(run *store.Run, runDir, baseSHA string) error {
 	preTrustWorkspace(repoDir)
 
 	cfg := &runner.SpawnConfig{
-		RunID:     run.ID,
-		RepoDir:   repoDir,
-		SessionID: run.SessionID,
-		LogPath:   filepath.Join(runDir, "output.log"),
-		Mode:      run.Mode,
-		MaxTurns:  run.MaxTurns,
-		OnExit:    s.makeOnExit(run.ID, runDir, baseSHA, run.SessionID),
-		Registry:  s.registry,
+		RunID:       run.ID,
+		RepoDir:     repoDir,
+		SessionID:   run.SessionID,
+		ForkSession: true,
+		LogPath:     filepath.Join(runDir, "output.log"),
+		Mode:        run.Mode,
+		MaxTurns:    run.MaxTurns,
+		OnExit:      s.makeOnExit(run.ID, runDir, baseSHA, run.SessionID),
+		Registry:    s.registry,
 	}
 
 	if err := runner.Spawn(cfg); err != nil {

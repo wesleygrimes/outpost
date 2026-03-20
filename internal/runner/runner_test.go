@@ -57,12 +57,13 @@ func TestBuildClaudeCmd_Interactive_Plan(t *testing.T) {
 	}
 }
 
-func TestBuildClaudeCmd_Headless_Resume(t *testing.T) {
+func TestBuildClaudeCmd_Headless_Resume_Fork(t *testing.T) {
 	t.Parallel()
 	cfg := &SpawnConfig{
-		Mode:      store.ModeHeadless,
-		MaxTurns:  50,
-		SessionID: "abc-123-def",
+		Mode:        store.ModeHeadless,
+		MaxTurns:    50,
+		SessionID:   "abc-123-def",
+		ForkSession: true,
 	}
 	cmd := BuildClaudeCmd(cfg)
 
@@ -86,12 +87,39 @@ func TestBuildClaudeCmd_Headless_Resume(t *testing.T) {
 	}
 }
 
-func TestBuildClaudeCmd_Interactive_Resume(t *testing.T) {
+func TestBuildClaudeCmd_Headless_Resume_NoFork(t *testing.T) {
 	t.Parallel()
 	cfg := &SpawnConfig{
-		Mode:      store.ModeInteractive,
-		MaxTurns:  30,
-		SessionID: "sess-456",
+		Mode:      store.ModeHeadless,
+		MaxTurns:  50,
+		SessionID: "forked-session-id",
+	}
+	cmd := BuildClaudeCmd(cfg)
+
+	if !strings.Contains(cmd, "--resume forked-session-id") {
+		t.Errorf("should contain --resume with session ID: got %q", cmd)
+	}
+	if strings.Contains(cmd, "--fork-session") {
+		t.Errorf("resume without fork should NOT contain --fork-session: got %q", cmd)
+	}
+	if strings.Contains(cmd, "--continue") {
+		t.Errorf("resume without fork should NOT have --continue phase: got %q", cmd)
+	}
+	if !strings.Contains(cmd, "--print") {
+		t.Errorf("headless should contain --print: got %q", cmd)
+	}
+	if !strings.Contains(cmd, "--max-turns 50") {
+		t.Errorf("should contain --max-turns 50: got %q", cmd)
+	}
+}
+
+func TestBuildClaudeCmd_Interactive_Resume_Fork(t *testing.T) {
+	t.Parallel()
+	cfg := &SpawnConfig{
+		Mode:        store.ModeInteractive,
+		MaxTurns:    30,
+		SessionID:   "sess-456",
+		ForkSession: true,
 	}
 	cmd := BuildClaudeCmd(cfg)
 
@@ -100,6 +128,29 @@ func TestBuildClaudeCmd_Interactive_Resume(t *testing.T) {
 	}
 	if !strings.Contains(cmd, "--fork-session") {
 		t.Errorf("should contain --fork-session: got %q", cmd)
+	}
+	if !strings.Contains(cmd, "--max-turns 30") {
+		t.Errorf("should contain --max-turns 30: got %q", cmd)
+	}
+	if strings.Contains(cmd, "--print") {
+		t.Error("interactive resume should NOT contain --print")
+	}
+}
+
+func TestBuildClaudeCmd_Interactive_Resume_NoFork(t *testing.T) {
+	t.Parallel()
+	cfg := &SpawnConfig{
+		Mode:      store.ModeInteractive,
+		MaxTurns:  30,
+		SessionID: "forked-session-id",
+	}
+	cmd := BuildClaudeCmd(cfg)
+
+	if !strings.Contains(cmd, "--resume forked-session-id") {
+		t.Errorf("should contain --resume with session ID: got %q", cmd)
+	}
+	if strings.Contains(cmd, "--fork-session") {
+		t.Errorf("resume without fork should NOT contain --fork-session: got %q", cmd)
 	}
 	if !strings.Contains(cmd, "--max-turns 30") {
 		t.Errorf("should contain --max-turns 30: got %q", cmd)

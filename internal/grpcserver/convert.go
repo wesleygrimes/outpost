@@ -36,21 +36,37 @@ func (s *Server) ConvertMode(_ context.Context, req *outpostv1.ConvertModeReques
 		return nil, status.Errorf(codes.InvalidArgument, "run %s is already in %s mode", r.ID, targetMode)
 	}
 
+	// Discover the forked session before stopping so we can resume it
+	// deterministically instead of relying on --continue.
+	repoDir := filepath.Join(r.Dir, "repo")
+	forkedSessionID := r.ForkedSessionID
+	if forkedSessionID == "" && r.SessionID != "" {
+		if fid, err := runner.FindForkedSession(repoDir, r.SessionID); err == nil {
+			forkedSessionID = fid
+		}
+	}
+
 	// Mark as converting so the OnExit callback skips finalization.
 	_ = s.store.Update(r.ID, func(run *store.Run) {
 		run.Converting = true
 	})
 
-	// Stop the current process.
-	runner.Stop(s.registry, r.ID, r.Mode)
+	// Graceful stop for interactive (gives Claude time to save state);
+	// normal stop for headless.
+	if r.Mode == store.ModeInteractive {
+		runner.GracefulStopInteractive(r.ID)
+	} else {
+		runner.Stop(s.registry, r.ID, r.Mode)
+	}
 
-	// Brief wait for the process to fully exit and Claude to save session state.
-	time.Sleep(2 * time.Second)
+	// Brief wait for session state to flush to disk.
+	time.Sleep(1 * time.Second)
 
-	// Update the run's mode and attach command.
+	// Update the run's mode, forked session, and attach command.
 	_ = s.store.Update(r.ID, func(run *store.Run) {
 		run.Mode = targetMode
 		run.Converting = false
+		run.ForkedSessionID = forkedSessionID
 		if targetMode == store.ModeInteractive {
 			hostname, _ := os.Hostname()
 			if s.cfg.SSHUser != "" {
@@ -63,8 +79,8 @@ func (s *Server) ConvertMode(_ context.Context, req *outpostv1.ConvertModeReques
 		}
 	})
 
-	// Re-spawn in the new mode with --continue to resume the Claude session.
-	if err := s.respawnConverted(r, targetMode); err != nil {
+	// Re-spawn in the new mode, resuming the forked session if available.
+	if err := s.respawnConverted(r, targetMode, forkedSessionID); err != nil {
 		now := time.Now()
 		_ = s.store.Update(r.ID, func(run *store.Run) {
 			run.Status = store.StatusFailed
@@ -79,23 +95,30 @@ func (s *Server) ConvertMode(_ context.Context, req *outpostv1.ConvertModeReques
 	}, nil
 }
 
-// respawnConverted re-spawns a run in a new mode using --continue.
-func (s *Server) respawnConverted(r *store.Run, targetMode store.Mode) error {
+// respawnConverted re-spawns a run in a new mode. It resumes the forked
+// session directly when available, falling back to --continue.
+func (s *Server) respawnConverted(r *store.Run, targetMode store.Mode, forkedSessionID string) error {
 	runDir := r.Dir
 	repoDir := filepath.Join(runDir, "repo")
 
 	preTrustWorkspace(repoDir)
 
 	cfg := &runner.SpawnConfig{
-		RunID:   r.ID,
-		RepoDir: repoDir,
-		LogPath: filepath.Join(runDir, "output.log"),
-		Mode:    targetMode,
-		// Use Continue flag to resume the most recent session in this project dir.
-		Continue: true,
+		RunID:    r.ID,
+		RepoDir:  repoDir,
+		LogPath:  filepath.Join(runDir, "output.log"),
+		Mode:     targetMode,
 		MaxTurns: r.MaxTurns,
 		OnExit:   s.makeOnExit(r.ID, runDir, r.BaseSHA, r.SessionID),
 		Registry: s.registry,
+	}
+
+	// Resume the forked session deterministically; fall back to --continue
+	// if no forked session was discovered.
+	if forkedSessionID != "" {
+		cfg.SessionID = forkedSessionID
+	} else {
+		cfg.Continue = true
 	}
 
 	if err := runner.Spawn(cfg); err != nil {
