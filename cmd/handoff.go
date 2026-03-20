@@ -80,10 +80,12 @@ func Handoff(args []string) error {
 		})
 	}
 
+	status := store.StatusFromProto(result.Status)
+
 	ui.Header("Handoff")
 	ui.Errln()
 	ui.Field("Run", ui.Amber(result.ID))
-	ui.Field("Status", string(result.Status))
+	ui.Field("Status", statusSymbol(status))
 	if result.Attach != "" {
 		ui.Field("Attach", result.Attach)
 	}
