@@ -3,7 +3,8 @@ GORELEASER   ?= $(shell command -v goreleaser 2>/dev/null)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS      := -ldflags "-s -w -X main.version=$(VERSION) -X github.com/wesgrimes/outpost/internal/grpcserver.Version=$(VERSION)"
 
-.PHONY: all build build-linux build-cross release proto lint fmt vet test check ci clean
+.PHONY: all build build-linux build-cross release proto lint fmt vet test check ci clean \
+       wt-new wt-list wt-remove wt-prune
 
 all: check build
 
@@ -66,3 +67,30 @@ ci: check
 
 clean:
 	rm -rf bin/ dist/
+
+# --- Worktrees -----------------------------------------------------------
+# Convention: worktrees live at ../outpost-<name> on branch <name>.
+# Usage:
+#   make wt-new name=my-feature
+#   make wt-list
+#   make wt-remove name=my-feature
+#   make wt-prune
+
+REPO_PARENT := $(shell cd .. && pwd)
+WT_DIR       = $(REPO_PARENT)/outpost-$(name)
+
+wt-new:
+	@if [ -z "$(name)" ]; then echo "usage: make wt-new name=<branch>"; exit 1; fi
+	git worktree add "$(WT_DIR)" -b "$(name)"
+	@echo "Worktree ready: $(WT_DIR)"
+
+wt-list:
+	git worktree list
+
+wt-remove:
+	@if [ -z "$(name)" ]; then echo "usage: make wt-remove name=<branch>"; exit 1; fi
+	git worktree remove "$(WT_DIR)"
+	@echo "Removed worktree: $(WT_DIR)"
+
+wt-prune:
+	git worktree prune -v

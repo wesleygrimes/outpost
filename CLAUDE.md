@@ -30,6 +30,19 @@ make fmt
 
 Uses gofumpt (stricter than gofmt) via golangci-lint.
 
+## Worktrees
+
+Work on feature branches using git worktrees. Worktrees live as sibling directories (`../outpost-<name>`) on a branch named `<name>`.
+
+```bash
+make wt-new name=my-feature     # creates ../outpost-my-feature on branch my-feature
+make wt-list                    # list all worktrees
+make wt-remove name=my-feature  # remove worktree and directory
+make wt-prune                   # clean up stale worktree references
+```
+
+Claude Code agent worktrees go in `.claude/worktrees/` (gitignored).
+
 ## CLI Output
 
 All terminal output must follow [docs/cli-output-guidelines.md](docs/cli-output-guidelines.md). Full per-command mockups are in [OUTPOST_CLI_OUTPUT_SPEC.md](OUTPOST_CLI_OUTPUT_SPEC.md).
