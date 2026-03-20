@@ -4,22 +4,18 @@ Remote Claude Code session runner. Single Go binary, two roles: server (`serve`)
 
 ## CI / Pre-commit
 
+Run before every commit:
+
 ```bash
-make check
+make all
 ```
 
-This runs `go vet`, `golangci-lint run` (v2, strict config), and tests.
+This runs `go vet`, `golangci-lint run` (v2, strict config), tests, and builds the binary. Do not commit if this fails.
 
 Full CI (includes GoReleaser config validation):
 
 ```bash
 make ci
-```
-
-## Build
-
-```bash
-make build
 ```
 
 ## Format

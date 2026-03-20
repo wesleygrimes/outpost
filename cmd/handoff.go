@@ -52,6 +52,24 @@ func Handoff(args []string) error {
 	}
 	defer logClose(client)
 
+	// Preflight: check server has capacity before streaming the archive.
+	ctx := context.Background()
+	doc, err := client.ServerDoctor(ctx)
+	if err != nil {
+		return fmt.Errorf("preflight check: %w", err)
+	}
+	if doc.ActiveRuns >= doc.MaxRuns {
+		ui.Errln()
+		ui.Errln("  " + ui.Fail(fmt.Sprintf("Handoff failed: server at capacity (%d/%d active runs).", doc.ActiveRuns, doc.MaxRuns)))
+		ui.Errln()
+		ui.Fix("outpost status")
+		ui.Fix("outpost drop <run_id>")
+		return &DisplayedError{Err: fmt.Errorf("handoff failed: server at capacity (%d/%d active runs)", doc.ActiveRuns, doc.MaxRuns)}
+	}
+
+	ui.Header("Handoff")
+	ui.Errln()
+
 	pb := ui.NewProgress("Streaming to server")
 	var lastTotal int64
 	result, err := client.Handoff(context.Background(), archivePath, &grpcclient.HandoffMeta{
@@ -67,7 +85,10 @@ func Handoff(args []string) error {
 		pb.Update(sent, total)
 	})
 	if err != nil {
-		return err
+		pb.Done(fmt.Sprintf("Streamed (%s)", ui.FormatBytes(lastTotal)))
+		ui.Errln()
+		ui.Errln("  " + ui.Fail("Handoff failed: "+humanizeGRPCError(err)))
+		return &DisplayedError{Err: fmt.Errorf("handoff failed: %s", humanizeGRPCError(err))}
 	}
 
 	pb.Done(fmt.Sprintf("Streamed (%s in %s)", ui.FormatBytes(lastTotal), formatDuration(pb.Elapsed())))
@@ -81,11 +102,9 @@ func Handoff(args []string) error {
 	}
 
 	status := store.StatusFromProto(result.Status)
-
-	ui.Header("Handoff")
 	ui.Errln()
 	ui.Field("Run", ui.Amber(result.ID))
-	ui.Field("Status", statusSymbol(status))
+	ui.Field("Status", ui.Check(string(status)))
 	if result.Attach != "" {
 		ui.Field("Attach", result.Attach)
 	}

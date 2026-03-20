@@ -240,7 +240,7 @@ func (c *Client) Handoff(ctx context.Context, archivePath string, meta *HandoffM
 
 	resp, err := stream.CloseAndRecv()
 	if err != nil {
-		return nil, fmt.Errorf("close stream: %w", err)
+		return nil, err
 	}
 
 	return &HandoffResult{

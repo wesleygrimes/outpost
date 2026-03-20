@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -61,7 +62,10 @@ func main() {
 	}
 
 	if err != nil {
-		ui.Errf("error: %v\n", err)
+		var displayed *cmd.DisplayedError
+		if !errors.As(err, &displayed) {
+			ui.Errf("error: %v\n", err)
+		}
 		os.Exit(1)
 	}
 }
