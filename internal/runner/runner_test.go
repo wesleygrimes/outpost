@@ -291,6 +291,8 @@ func TestComputePathHash(t *testing.T) {
 	}{
 		{"/home/user/project", "-home-user-project"},
 		{"/tmp/test", "-tmp-test"},
+		{"/home/outpost/.outpost/runs/abc/repo", "-home-outpost--outpost-runs-abc-repo"},
+		{"/Users/wes/code/outpost", "-Users-wes-code-outpost"},
 	}
 
 	for _, tt := range tests {

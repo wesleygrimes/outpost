@@ -320,7 +320,9 @@ func readExitCode(path string) int {
 // path hash format: slashes and dots become dashes.
 // e.g. /home/outpost/.outpost/runs/abc/repo -> -home-outpost-.outpost-runs-abc-repo
 func ComputePathHash(dir string) string {
-	return strings.ReplaceAll(dir, string(filepath.Separator), "-")
+	h := strings.ReplaceAll(dir, string(filepath.Separator), "-")
+	h = strings.ReplaceAll(h, ".", "-")
+	return h
 }
 
 // FindForkedSession scans the Claude projects directory for a forked session
