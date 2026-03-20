@@ -1,17 +1,50 @@
 # Outpost
 
-Remote Claude Code session runner. One command to provision, one command to connect.
+> Async AI coding agent runner. Hand off tasks, keep working, pick up results.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+
+---
+
+AI coding agents are 10x developers, but they can only do one thing at a time in your terminal. Outpost lets you hand off tasks and keep working. Hand off three refactors before lunch, pick up the patches after. Your agent becomes a team, not a pair.
+
+- **Stop babysitting.** Hand off a task, get a patch back. No terminal to watch.
+- **Fire and forget.** Start a refactor before lunch, pick it up after. Start a migration before dinner, pick up the patch in the morning.
+- **Parallel, not serial.** Run multiple agent sessions at once. Review results as they land.
+- **Local or remote.** Run on your laptop or offload to dedicated hardware. Same workflow.
+- **One binary, zero infrastructure.** No Docker, no cloud. `outpost serve` and go.
+- **Git in, git out.** Repo goes up, patch comes back. Clean diffs, easy review.
+
+## How It Works
+
+1. **Hand off** — Archive your repo and task, send it to the Outpost server
+2. **Run** — Outpost spawns your AI coding agent in the background
+3. **Monitor** — Check status, tail logs, keep working on other things
+4. **Pick up** — Download the patch, review the diff, apply it locally
+
+## Quick Start
+
+```bash
+# Start the server (locally or on a remote box)
+outpost serve
+
+# Hand off a task
+outpost handoff --session-id <uuid> --mode headless --branch feat/auth
+
+# Check on it
+outpost status
+
+# Grab the results
+outpost pickup <run-id>
+```
 
 ## Install
 
-```bash
-curl -fsSL https://git.grimes.pro/wesleygrimes/outpost/raw/branch/main/install.sh | bash
-```
-
-Or build from source:
+### From Source
 
 ```bash
-git clone https://git.grimes.pro/wesleygrimes/outpost.git
+git clone https://github.com/wesleygrimes/outpost.git
 cd outpost
 make build
 sudo mv bin/outpost /usr/local/bin/
@@ -19,43 +52,11 @@ sudo mv bin/outpost /usr/local/bin/
 
 ### Claude Code Plugin
 
-The installer sets this up automatically. To install manually:
+Outpost ships as a Claude Code plugin with slash commands for handoff, status, logs, pickup, drop, and watch.
 
 ```bash
-claude plugin marketplace add https://git.grimes.pro/wesleygrimes/outpost.git
+claude plugin marketplace add https://github.com/wesleygrimes/outpost.git
 claude plugin install outpost@outpost-marketplace
-```
-
-This adds the `/outpost:handoff`, `/outpost:status`, `/outpost:logs`, `/outpost:pickup`, `/outpost:drop`, and `/outpost:watch` slash commands.
-
-## Quick Start
-
-First, add your server to `~/.ssh/config`:
-
-```
-Host myserver
-    HostName 192.168.1.20
-    User deploy
-    IdentityFile ~/.ssh/id_ed25519
-```
-
-Then provision and connect:
-
-```bash
-# Provision a remote server (builds, uploads, configures via SSH)
-outpost server setup myserver
-
-# Or connect to an existing server
-outpost login outpost.grimes.pro:7600 <token>
-
-# Hand off work
-outpost handoff --session-id <uuid> --mode headless --branch feat/auth
-
-# Check status
-outpost status
-
-# Download results
-outpost pickup <run-id>
 ```
 
 ## Commands
@@ -64,10 +65,10 @@ outpost pickup <run-id>
 
 | Command | Description |
 |---------|-------------|
-| `outpost server setup` | Configure this machine as an outpost server |
+| `outpost serve` | Start the server daemon |
+| `outpost server setup` | Configure the local machine as a server |
 | `outpost server setup <ssh-target>` | Provision a remote server via SSH |
-| `outpost server doctor` | Check server health via gRPC |
-| `outpost serve` | Start the gRPC daemon |
+| `outpost server doctor` | Check server health |
 
 ### Client
 
@@ -75,38 +76,23 @@ outpost pickup <run-id>
 |---------|-------------|
 | `outpost login <host> <token>` | Connect to a server |
 | `outpost doctor` | Check client health |
-| `outpost handoff --session-id <uuid>` | Push work to the server |
-| `outpost status` | Dashboard with active runs and history |
+| `outpost handoff` | Hand off a task |
+| `outpost status` | Dashboard of runs |
 | `outpost status <id>` | Single run detail |
 | `outpost status <id> --follow` | Tail logs live |
-| `outpost logs <id>` | Dump last 20 lines of log output |
-| `outpost logs <id> --tail` | Follow logs live |
-| `outpost logs <id> -n 50` | Dump last N lines |
+| `outpost logs <id>` | View log output |
 | `outpost pickup <id>` | Download completed patch |
 | `outpost drop <id>` | Discard a run |
-| `outpost version` | Print version |
-
-## How It Works
-
-1. **Handoff**: Archives your repo, streams it to the server over gRPC
-2. **Server**: Extracts, creates a git commit, spawns Claude Code in tmux (interactive) or bash (headless)
-3. **Status**: Polls the server for run status, streams logs
-4. **Pickup**: Downloads the diff patch, applies it locally
 
 ## Architecture
 
-Single Go binary with two roles:
+Single Go binary, two roles:
 
-- **Server** (`outpost serve`): gRPC daemon managing Claude Code sessions in tmux/bash. Stores runs under `~/.outpost/runs/`. TLS with self-signed certs, token auth.
-- **Client** (all other commands): Connects to the server over gRPC. Config stored at `~/.config/outpost/config.yaml`.
+- **Server** (`outpost serve`) — gRPC daemon that manages agent sessions. TLS + token auth. Runs agents in tmux (interactive) or headless.
+- **Client** (everything else) — Connects over gRPC. Config at `~/.config/outpost/config.yaml`.
 
-### TLS
-
-Behind a reverse proxy (Traefik, Caddy, nginx) with real certs: client uses system TLS, no extra config needed.
-
-Direct access with self-signed certs: use `--ca-cert` on login, or let `server setup <host>` handle it automatically.
-
-## Config
+<details>
+<summary>Configuration</summary>
 
 **Server** (`~/.outpost/config.yaml`):
 ```yaml
@@ -120,45 +106,25 @@ tls_ca: ~/.outpost/tls/ca.pem
 
 **Client** (`~/.config/outpost/config.yaml`):
 ```yaml
-server: outpost.grimes.pro:7600
+server: localhost:7600
 token: <from login>
 ca_cert: <optional, path to CA>
 ```
 
-## Development
+</details>
+
+<details>
+<summary>Development</summary>
 
 ```bash
 make check    # vet + lint + test
-make ci       # check + goreleaser config validation
 make build    # local binary
 make proto    # regenerate protobuf
 make fmt      # format with gofumpt
 ```
 
-## Releasing
+</details>
 
-Releases are built with [GoReleaser](https://goreleaser.com) and published to Gitea.
+## License
 
-**Prerequisites:** `goreleaser` installed (`brew install goreleaser/tap/goreleaser`) and `GITEA_TOKEN` set.
-
-```bash
-make release
-```
-
-This will:
-1. Auto-increment the patch version from the latest git tag
-2. Stamp the plugin version in `.claude-plugin/marketplace.json`
-3. Commit, tag, and push
-4. Build cross-platform binaries (linux/darwin, amd64/arm64) via GoReleaser
-5. Create a Gitea release with binaries and checksums
-
-**Dry run** (builds locally, no upload):
-```bash
-goreleaser release --snapshot --clean
-```
-
-**If a release fails** after the tag is pushed but before assets upload:
-```bash
-git push --delete origin <tag> && git tag -d <tag>
-make release
-```
+[MIT](LICENSE)
