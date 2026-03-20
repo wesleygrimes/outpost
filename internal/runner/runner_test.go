@@ -75,6 +75,9 @@ func TestBuildClaudeCmd_Headless_Resume(t *testing.T) {
 	if !strings.Contains(cmd, "--continue") {
 		t.Errorf("headless resume should have --continue phase: got %q", cmd)
 	}
+	if !strings.Contains(cmd, "--print") {
+		t.Errorf("headless resume should contain --print: got %q", cmd)
+	}
 	if !strings.Contains(cmd, "--max-turns 50") {
 		t.Errorf("should contain --max-turns 50: got %q", cmd)
 	}
@@ -117,6 +120,9 @@ func TestBuildClaudeCmd_Headless_Continue(t *testing.T) {
 
 	if !strings.Contains(cmd, "--continue") {
 		t.Errorf("should contain --continue: got %q", cmd)
+	}
+	if !strings.Contains(cmd, "--print") {
+		t.Errorf("headless continue should contain --print: got %q", cmd)
 	}
 	if !strings.Contains(cmd, "--max-turns 50") {
 		t.Errorf("should contain --max-turns 50: got %q", cmd)

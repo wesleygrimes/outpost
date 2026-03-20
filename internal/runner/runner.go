@@ -122,12 +122,12 @@ func buildResumeCmd(cfg *SpawnConfig, maxTurns int) string {
 	case store.ModeHeadless:
 		// Two-phase: compact, then work
 		compact := fmt.Sprintf(
-			"claude --resume %s --fork-session -p %q --permission-mode bypassPermissions",
+			"claude --resume %s --fork-session --print -p %q --permission-mode bypassPermissions",
 			cfg.SessionID,
 			"/compact focus on the current task and next steps",
 		)
 		work := fmt.Sprintf(
-			"claude --continue -p %q --permission-mode bypassPermissions --max-turns %d",
+			"claude --continue --print -p %q --permission-mode bypassPermissions --max-turns %d",
 			"Continue working. Full conversation context preserved via session handoff.",
 			maxTurns,
 		)
@@ -147,7 +147,7 @@ func buildContinueCmd(cfg *SpawnConfig, maxTurns int) string {
 	switch cfg.Mode {
 	case store.ModeHeadless:
 		return fmt.Sprintf(
-			"claude --continue -p %q --permission-mode bypassPermissions --max-turns %d",
+			"claude --continue --print -p %q --permission-mode bypassPermissions --max-turns %d",
 			"Continue working. Mode converted to headless.",
 			maxTurns,
 		)
