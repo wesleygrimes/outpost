@@ -16,6 +16,7 @@ import (
 
 // Status lists runs or shows detail for a specific run.
 func Status(args []string) error {
+	jsonOut, args := hasFlag(args, "--json")
 	follow := false
 	var id string
 
@@ -40,13 +41,19 @@ func Status(args []string) error {
 	}
 
 	if id != "" {
-		return showRunDetail(ctx, client, id)
+		return showRunDetail(ctx, client, id, jsonOut)
 	}
 
 	runs, err := client.ListRuns(ctx)
 	if err != nil {
 		return err
 	}
+
+	if jsonOut {
+		return printDashboardJSON(runs)
+	}
+
+	printHeader()
 	printDashboard(runs)
 	return nil
 }
@@ -73,7 +80,6 @@ func followLogs(ctx context.Context, client *grpcclient.Client, id string) error
 }
 
 func printDashboard(runs []*store.Run) {
-	// Count by status.
 	var active, complete, failed, dropped int
 	var running, recent []*store.Run
 
@@ -93,31 +99,126 @@ func printDashboard(runs []*store.Run) {
 		}
 	}
 
+	fmt.Printf("\n  Active: %d   Complete: %d   Failed: %d   Dropped: %d\n", active, complete, failed, dropped)
+
+	if len(running) == 0 && len(recent) == 0 {
+		return
+	}
+
+	fmt.Println()
+	tw := newTable()
+	_, _ = fmt.Fprintf(tw, "  ID\tSTATUS\tMODE\tBRANCH\tAGE\tPATCH\n")
+	for _, r := range running {
+		branch := r.Branch
+		if branch == "" {
+			branch = "-"
+		}
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t\n",
+			r.ID, r.Status, r.Mode, branch, formatAge(r.CreatedAt))
+	}
+	for _, r := range recent {
+		age := formatAge(r.CreatedAt)
+		if r.FinishedAt != nil {
+			age = formatAge(*r.FinishedAt)
+		}
+		branch := r.Branch
+		if branch == "" {
+			branch = "-"
+		}
+		patch := "no"
+		if r.PatchReady {
+			patch = "yes"
+		}
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n",
+			r.ID, r.Status, r.Mode, branch, age, patch)
+	}
+	_ = tw.Flush()
+}
+
+type dashboardJSON struct {
+	Server   string           `json:"server"`
+	Active   int              `json:"active"`
+	Complete int              `json:"complete"`
+	Failed   int              `json:"failed"`
+	Dropped  int              `json:"dropped"`
+	Runs     []runSummaryJSON `json:"runs"`
+}
+
+type runSummaryJSON struct {
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	Mode       string `json:"mode"`
+	Branch     string `json:"branch"`
+	Age        string `json:"age"`
+	PatchReady bool   `json:"patch_ready,omitempty"`
+}
+
+func printDashboardJSON(runs []*store.Run) error {
+	var active, complete, failed, dropped int
+	var summaries []runSummaryJSON
+
+	for _, r := range runs {
+		switch r.Status {
+		case store.StatusPending, store.StatusRunning:
+			active++
+			summaries = append(summaries, runSummaryJSON{
+				ID:     r.ID,
+				Status: string(r.Status),
+				Mode:   string(r.Mode),
+				Branch: r.Branch,
+				Age:    formatAge(r.CreatedAt),
+			})
+		case store.StatusComplete:
+			complete++
+			age := formatAge(r.CreatedAt)
+			if r.FinishedAt != nil {
+				age = formatAge(*r.FinishedAt)
+			}
+			summaries = append(summaries, runSummaryJSON{
+				ID:         r.ID,
+				Status:     string(r.Status),
+				Mode:       string(r.Mode),
+				Branch:     r.Branch,
+				Age:        age,
+				PatchReady: r.PatchReady,
+			})
+		case store.StatusFailed:
+			failed++
+			age := formatAge(r.CreatedAt)
+			if r.FinishedAt != nil {
+				age = formatAge(*r.FinishedAt)
+			}
+			summaries = append(summaries, runSummaryJSON{
+				ID:         r.ID,
+				Status:     string(r.Status),
+				Mode:       string(r.Mode),
+				Branch:     r.Branch,
+				Age:        age,
+				PatchReady: r.PatchReady,
+			})
+		case store.StatusDropped:
+			dropped++
+		}
+	}
+
 	cfg, cfgErr := config.LoadClient()
 	serverName := ""
 	if cfgErr == nil {
 		serverName = cfg.Server
 	}
 
-	fmt.Printf("server=%s\n", serverName)
-	fmt.Printf("active=%d\n", active)
-	fmt.Printf("complete=%d\n", complete)
-	fmt.Printf("failed=%d\n", failed)
-	fmt.Printf("dropped=%d\n", dropped)
-
-	for _, r := range running {
-		fmt.Printf("\nrun=%s status=%s mode=%s branch=%s age=%s\n",
-			r.ID, r.Status, r.Mode, r.Branch, formatAge(r.CreatedAt))
+	if summaries == nil {
+		summaries = []runSummaryJSON{}
 	}
 
-	for _, r := range recent {
-		age := formatAge(r.CreatedAt)
-		if r.FinishedAt != nil {
-			age = formatAge(*r.FinishedAt)
-		}
-		fmt.Printf("\nrun=%s status=%s mode=%s branch=%s age=%s patch_ready=%t\n",
-			r.ID, r.Status, r.Mode, r.Branch, age, r.PatchReady)
-	}
+	return printJSON(dashboardJSON{
+		Server:   serverName,
+		Active:   active,
+		Complete: complete,
+		Failed:   failed,
+		Dropped:  dropped,
+		Runs:     summaries,
+	})
 }
 
 func formatAge(t time.Time) string {
@@ -134,30 +235,46 @@ func formatAge(t time.Time) string {
 	}
 }
 
-func showRunDetail(ctx context.Context, client *grpcclient.Client, id string) error {
+func showRunDetail(ctx context.Context, client *grpcclient.Client, id string, jsonOut bool) error {
 	r, err := client.GetRun(ctx, id)
 	if err != nil {
 		return err
 	}
-	printRunKV(r)
+	if jsonOut {
+		return printJSON(r)
+	}
+
+	printHeader()
+	printRunDetail(r)
 	return nil
 }
 
-func printRunKV(r *store.Run) {
-	fmt.Printf("id=%s\n", r.ID)
-	fmt.Printf("name=%s\n", r.Name)
-	fmt.Printf("status=%s\n", r.Status)
-	fmt.Printf("mode=%s\n", r.Mode)
-	fmt.Printf("branch=%s\n", r.Branch)
-	fmt.Printf("base_sha=%s\n", r.BaseSHA)
-	fmt.Printf("final_sha=%s\n", r.FinalSHA)
-	fmt.Printf("patch_ready=%t\n", r.PatchReady)
-	fmt.Printf("created_at=%s\n", r.CreatedAt.Format("2006-01-02 15:04:05"))
+func printRunDetail(r *store.Run) {
+	fmt.Println()
+	printField("Run:", r.ID)
+	printField("Name:", r.Name)
+	printField("Status:", string(r.Status))
+	printField("Mode:", string(r.Mode))
+	if r.Branch != "" {
+		printField("Branch:", r.Branch)
+	}
+	if r.BaseSHA != "" {
+		printField("Base SHA:", r.BaseSHA)
+	}
+	if r.FinalSHA != "" {
+		printField("Final SHA:", r.FinalSHA)
+	}
+	patch := "no"
+	if r.PatchReady {
+		patch = "yes"
+	}
+	printField("Patch Ready:", patch)
+	printField("Created:", r.CreatedAt.Format("2006-01-02 15:04:05"))
 	if r.FinishedAt != nil {
-		fmt.Printf("finished_at=%s\n", r.FinishedAt.Format("2006-01-02 15:04:05"))
+		printField("Finished:", r.FinishedAt.Format("2006-01-02 15:04:05"))
 	}
 	if r.Attach != "" {
-		fmt.Printf("attach=%s\n", r.Attach)
+		printField("Attach:", r.Attach)
 	}
 
 	if r.LogTail != "" {

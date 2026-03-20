@@ -35,7 +35,7 @@ func (s *Server) Handoff(stream outpostv1.OutpostService_HandoffServer) error {
 		return err
 	}
 
-	runID := runner.GenerateRunID(meta.GetName())
+	runID := runner.GenerateRunID()
 	runDir := filepath.Join(s.runsDir, runID)
 
 	if err := os.MkdirAll(filepath.Join(runDir, "repo"), 0o755); err != nil {

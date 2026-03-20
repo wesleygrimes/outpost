@@ -24,6 +24,7 @@ func Handoff(args []string) error {
 	branch := fs.String("branch", "", "git branch")
 	maxTurns := fs.Int("max-turns", runner.DefaultMaxTurns, "max turns")
 	subdir := fs.String("subdir", "", "subdirectory")
+	jsonOut := fs.Bool("json", false, "output JSON")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -68,10 +69,20 @@ func Handoff(args []string) error {
 
 	fmt.Fprintln(os.Stderr)
 
-	fmt.Printf("id=%s\n", result.ID)
-	fmt.Printf("status=%s\n", result.Status)
+	if *jsonOut {
+		return printJSON(map[string]string{
+			"id":     result.ID,
+			"status": string(result.Status),
+			"attach": result.Attach,
+		})
+	}
+
+	printHeader()
+	fmt.Println()
+	printField("Run:", result.ID)
+	printField("Status:", string(result.Status))
 	if result.Attach != "" {
-		fmt.Printf("attach=%s\n", result.Attach)
+		printField("Attach:", result.Attach)
 	}
 
 	return nil

@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -373,27 +372,12 @@ func FindForkedSession(repoDir, originalSessionID string) (string, error) {
 	return newestID, nil
 }
 
-var runIDSanitize = regexp.MustCompile(`[^a-zA-Z0-9-]`)
-
-// GenerateRunID creates a unique run identifier from a name.
-func GenerateRunID(name string) string {
-	sanitized := runIDSanitize.ReplaceAllString(name, "-")
-	if len(sanitized) > 30 {
-		sanitized = sanitized[:30]
-	}
-	sanitized = strings.Trim(sanitized, "-")
-
-	now := time.Now()
+// GenerateRunID creates a unique run identifier: YYYYMMDD-HHMMSS-XXXXXXXX.
+func GenerateRunID() string {
 	suffix := make([]byte, 4)
 	if _, err := rand.Read(suffix); err != nil {
 		panic("failed to generate random suffix: " + err.Error())
 	}
 
-	ts := now.Format("20060102-150405")
-	hexSuffix := hex.EncodeToString(suffix)
-
-	if sanitized == "" {
-		return "run-" + ts + "-" + hexSuffix
-	}
-	return sanitized + "-" + ts + "-" + hexSuffix
+	return time.Now().Format("20060102-150405") + "-" + hex.EncodeToString(suffix)
 }

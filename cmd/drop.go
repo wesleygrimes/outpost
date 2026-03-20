@@ -10,6 +10,8 @@ import (
 
 // Drop stops and discards a run.
 func Drop(args []string) error {
+	jsonOut, args := hasFlag(args, "--json")
+
 	if len(args) < 1 {
 		return errors.New("usage: outpost drop <run_id>")
 	}
@@ -26,8 +28,15 @@ func Drop(args []string) error {
 		return err
 	}
 
-	fmt.Printf("id=%s\n", droppedID)
-	fmt.Println("status=dropped")
+	if jsonOut {
+		return printJSON(map[string]string{
+			"id":     droppedID,
+			"status": "dropped",
+		})
+	}
+
+	printHeader()
+	fmt.Printf("\n  Dropped: %s\n", droppedID)
 
 	return nil
 }

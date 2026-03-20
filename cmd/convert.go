@@ -13,6 +13,8 @@ import (
 
 // Convert changes a running session between interactive and headless mode.
 func Convert(args []string) error {
+	jsonOut, args := hasFlag(args, "--json")
+
 	if len(args) < 2 {
 		return errors.New("usage: outpost convert <run_id> <interactive|headless>")
 	}
@@ -43,11 +45,22 @@ func Convert(args []string) error {
 		return err
 	}
 
-	fmt.Printf("id=%s\n", r.ID)
-	fmt.Printf("mode=%s\n", r.Mode)
-	fmt.Printf("status=%s\n", r.Status)
+	if jsonOut {
+		return printJSON(map[string]string{
+			"id":     r.ID,
+			"mode":   string(r.Mode),
+			"status": string(r.Status),
+			"attach": r.Attach,
+		})
+	}
+
+	printHeader()
+	fmt.Println()
+	printField("Run:", r.ID)
+	printField("Mode:", string(r.Mode))
+	printField("Status:", string(r.Status))
 	if r.Attach != "" {
-		fmt.Printf("attach=%s\n", r.Attach)
+		printField("Attach:", r.Attach)
 	}
 
 	return nil

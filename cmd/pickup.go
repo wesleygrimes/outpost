@@ -14,6 +14,8 @@ import (
 
 // Pickup downloads a completed patch and cleans up the remote run.
 func Pickup(args []string) error {
+	jsonOut, args := hasFlag(args, "--json")
+
 	if len(args) < 1 {
 		return errors.New("usage: outpost pickup <run_id>")
 	}
@@ -47,7 +49,33 @@ func Pickup(args []string) error {
 		return fmt.Errorf("download patch: %w", err)
 	}
 
-	fmt.Printf("patch=%s\n", patchPath)
+	var sessionID string
+	if r.SessionReady && r.ForkedSessionID != "" {
+		if err := downloadSession(ctx, client, id, r.ForkedSessionID); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: session download failed: %v\n", err)
+		} else {
+			sessionID = r.ForkedSessionID
+		}
+	}
+
+	if err := client.CleanupRun(ctx, id); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: cleanup failed: %v\n", err)
+	}
+
+	if jsonOut {
+		result := map[string]string{
+			"id":    id,
+			"patch": patchPath,
+		}
+		if sessionID != "" {
+			result["session"] = sessionID
+		}
+		return printJSON(result)
+	}
+
+	printHeader()
+	fmt.Println()
+	printField("Patch:", patchPath)
 	fmt.Println()
 
 	diffStat := exec.Command("git", "diff", "--stat", patchPath)
@@ -55,17 +83,9 @@ func Pickup(args []string) error {
 	diffStat.Stderr = os.Stderr
 	_ = diffStat.Run()
 
-	// Download forked session JSONL if available.
-	if r.SessionReady && r.ForkedSessionID != "" {
-		if err := downloadSession(ctx, client, id, r.ForkedSessionID); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: session download failed: %v\n", err)
-		} else {
-			fmt.Printf("session=%s\n", r.ForkedSessionID)
-		}
-	}
-
-	if err := client.CleanupRun(ctx, id); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cleanup failed: %v\n", err)
+	if sessionID != "" {
+		fmt.Println()
+		printField("Session:", sessionID)
 	}
 
 	return nil

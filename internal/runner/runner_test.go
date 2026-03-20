@@ -205,53 +205,20 @@ func TestBuildClaudeCmd_ZeroMaxTurns(t *testing.T) {
 	}
 }
 
-var runIDPattern = regexp.MustCompile(`^[a-zA-Z0-9-]+-\d{8}-\d{6}-[0-9a-f]{8}$`)
+var runIDPattern = regexp.MustCompile(`^\d{8}-\d{6}-[0-9a-f]{8}$`)
 
-func TestGenerateRunID_Formats(t *testing.T) {
+func TestGenerateRunID_Format(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name string
-		want string // substring expected in the name portion
-	}{
-		{"my-feature", "my-feature-"},
-		{"", "run-"},
-	}
-
-	for _, tt := range tests {
-		id := GenerateRunID(tt.name)
-		if !strings.Contains(id, tt.want) {
-			t.Errorf("GenerateRunID(%q) = %q, want to contain %q", tt.name, id, tt.want)
-		}
-		if !runIDPattern.MatchString(id) {
-			t.Errorf("GenerateRunID(%q) = %q, doesn't match expected pattern", tt.name, id)
-		}
-	}
-}
-
-func TestGenerateRunID_Sanitization(t *testing.T) {
-	t.Parallel()
-	id := GenerateRunID("hello world!@#$%")
-	if strings.ContainsAny(id, " !@#$%") {
-		t.Errorf("ID contains special chars: %q", id)
-	}
-}
-
-func TestGenerateRunID_LongName(t *testing.T) {
-	t.Parallel()
-	longName := strings.Repeat("a", 100)
-	id := GenerateRunID(longName)
-
-	// Name portion should be truncated to 30
-	parts := strings.SplitN(id, "-20", 2) // split at the timestamp
-	if len(parts[0]) > 30 {
-		t.Errorf("name portion too long: %d chars in %q", len(parts[0]), id)
+	id := GenerateRunID()
+	if !runIDPattern.MatchString(id) {
+		t.Errorf("GenerateRunID() = %q, doesn't match YYYYMMDD-HHMMSS-XXXXXXXX pattern", id)
 	}
 }
 
 func TestGenerateRunID_Uniqueness(t *testing.T) {
 	t.Parallel()
-	id1 := GenerateRunID("test")
-	id2 := GenerateRunID("test")
+	id1 := GenerateRunID()
+	id2 := GenerateRunID()
 	if id1 == id2 {
 		t.Errorf("two calls produced the same ID: %q", id1)
 	}
