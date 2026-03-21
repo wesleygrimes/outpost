@@ -3,10 +3,13 @@ GORELEASER   ?= $(shell command -v goreleaser 2>/dev/null)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS      := -ldflags "-s -w -X main.version=$(VERSION) -X github.com/wesleygrimes/outpost/internal/grpcserver.Version=$(VERSION)"
 
-.PHONY: all build build-linux build-cross release proto lint fmt vet test check ci clean \
+.PHONY: all build build-linux build-cross release proto lint fmt vet test check ci clean setup \
        wt-new wt-list wt-remove wt-prune
 
 all: check build
+
+setup:
+	brew install golangci-lint goreleaser bufbuild/buf/buf
 
 build:
 	go build $(LDFLAGS) -o bin/outpost .
@@ -38,9 +41,9 @@ release:
 		.claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp \
 		&& mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json; \
 	git add .claude-plugin/marketplace.json; \
-	git commit -m "chore: bump plugin version to $$SEMVER"; \
+	git diff --cached --quiet || git commit -m "chore: bump plugin version to $$SEMVER"; \
 	echo "==> Tagging $$NEXT"; \
-	git tag "$$NEXT"; \
+	git tag -a -m "Release $$NEXT" "$$NEXT"; \
 	git push origin main "$$NEXT"; \
 	echo "==> Running GoReleaser"; \
 	$(GORELEASER) release --clean
