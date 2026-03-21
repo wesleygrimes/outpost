@@ -51,6 +51,8 @@ func main() {
 		err = cmd.Drop(subargs)
 	case "convert":
 		err = cmd.Convert(subargs)
+	case "mcp":
+		err = cmd.MCP()
 
 	// Meta.
 	case "version":
@@ -106,6 +108,7 @@ Client commands:
   pickup <id>          Download completed patch
   drop <id>            Drop a run
   convert <id> <mode>  Convert between interactive/headless
+  mcp                  Start MCP server (stdio transport)
 
 Meta:
   version              Print version
