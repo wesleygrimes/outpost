@@ -9,7 +9,9 @@ LDFLAGS      := -ldflags "-s -w -X main.version=$(VERSION) -X github.com/wesleyg
 all: check build
 
 setup:
-	brew install golangci-lint goreleaser bufbuild/buf/buf
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
+	go install github.com/goreleaser/goreleaser/v2@latest
+	curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-$$(uname -s)-$$(uname -m)" -o $$(go env GOPATH)/bin/buf && chmod +x $$(go env GOPATH)/bin/buf
 
 build:
 	go build $(LDFLAGS) -o bin/outpost .
