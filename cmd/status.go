@@ -274,8 +274,8 @@ func printRunDetail(r *store.Run) {
 	if r.FinishedAt != nil {
 		ui.Field("Finished", r.FinishedAt.Format("2006-01-02 15:04:05"))
 	}
-	if r.Attach != "" {
-		ui.Field("Attach", r.Attach)
+	if attach := attachCmd(r.Attach, r.AttachLocal); attach != "" {
+		ui.Field("Attach", attach)
 	}
 
 	if r.LogTail != "" {

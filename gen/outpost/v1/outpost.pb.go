@@ -148,6 +148,7 @@ type Run struct {
 	SessionId       string                 `protobuf:"bytes,15,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	ForkedSessionId string                 `protobuf:"bytes,16,opt,name=forked_session_id,json=forkedSessionId,proto3" json:"forked_session_id,omitempty"`
 	SessionReady    bool                   `protobuf:"varint,17,opt,name=session_ready,json=sessionReady,proto3" json:"session_ready,omitempty"`
+	AttachLocal     string                 `protobuf:"bytes,18,opt,name=attach_local,json=attachLocal,proto3" json:"attach_local,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -299,6 +300,13 @@ func (x *Run) GetSessionReady() bool {
 		return x.SessionReady
 	}
 	return false
+}
+
+func (x *Run) GetAttachLocal() string {
+	if x != nil {
+		return x.AttachLocal
+	}
+	return ""
 }
 
 type GetRunRequest struct {
@@ -1048,6 +1056,7 @@ type HandoffResponse struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Status        RunStatus              `protobuf:"varint,2,opt,name=status,proto3,enum=outpost.v1.RunStatus" json:"status,omitempty"`
 	Attach        string                 `protobuf:"bytes,3,opt,name=attach,proto3" json:"attach,omitempty"`
+	AttachLocal   string                 `protobuf:"bytes,4,opt,name=attach_local,json=attachLocal,proto3" json:"attach_local,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1099,6 +1108,13 @@ func (x *HandoffResponse) GetStatus() RunStatus {
 func (x *HandoffResponse) GetAttach() string {
 	if x != nil {
 		return x.Attach
+	}
+	return ""
+}
+
+func (x *HandoffResponse) GetAttachLocal() string {
+	if x != nil {
+		return x.AttachLocal
 	}
 	return ""
 }
@@ -1564,7 +1580,7 @@ var File_outpost_v1_outpost_proto protoreflect.FileDescriptor
 const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\n" +
 	"\x18outpost/v1/outpost.proto\x12\n" +
-	"outpost.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x04\n" +
+	"outpost.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe5\x04\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12'\n" +
@@ -1587,7 +1603,8 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x0f \x01(\tR\tsessionId\x12*\n" +
 	"\x11forked_session_id\x18\x10 \x01(\tR\x0fforkedSessionId\x12#\n" +
-	"\rsession_ready\x18\x11 \x01(\bR\fsessionReady\"\x1f\n" +
+	"\rsession_ready\x18\x11 \x01(\bR\fsessionReady\x12!\n" +
+	"\fattach_local\x18\x12 \x01(\tR\vattachLocal\"\x1f\n" +
 	"\rGetRunRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"3\n" +
 	"\x0eGetRunResponse\x12!\n" +
@@ -1631,11 +1648,12 @@ const file_outpost_v1_outpost_proto_rawDesc = "" +
 	"\x06subdir\x18\x06 \x01(\tR\x06subdir\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\a \x01(\tR\tsessionId\x12#\n" +
-	"\rsession_jsonl\x18\b \x01(\fR\fsessionJsonl\"h\n" +
+	"\rsession_jsonl\x18\b \x01(\fR\fsessionJsonl\"\x8b\x01\n" +
 	"\x0fHandoffResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x15.outpost.v1.RunStatusR\x06status\x12\x16\n" +
-	"\x06attach\x18\x03 \x01(\tR\x06attach\"9\n" +
+	"\x06attach\x18\x03 \x01(\tR\x06attach\x12!\n" +
+	"\fattach_local\x18\x04 \x01(\tR\vattachLocal\"9\n" +
 	"\x0fTailLogsRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06follow\x18\x02 \x01(\bR\x06follow\"&\n" +

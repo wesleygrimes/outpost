@@ -43,6 +43,7 @@ message Run {
   string                    session_id        = 15;
   string                    forked_session_id = 16;
   bool                      session_ready     = 17;
+  string                    attach_local      = 18;
 }
 
 // ---------- Unary ----------
@@ -105,9 +106,10 @@ message HandoffMetadata {
 }
 
 message HandoffResponse {
-  string    id     = 1;
-  RunStatus status = 2;
-  string    attach = 3;
+  string    id           = 1;
+  RunStatus status       = 2;
+  string    attach       = 3;
+  string    attach_local = 4;
 }
 
 // ---------- Server streaming: TailLogs ----------

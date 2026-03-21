@@ -71,11 +71,14 @@ func (s *Server) ConvertMode(_ context.Context, req *outpostv1.ConvertModeReques
 			hostname, _ := os.Hostname()
 			if s.cfg.SSHUser != "" {
 				run.Attach = fmt.Sprintf("ssh -t %s sudo -u %s tmux attach-session -t %s", hostname, s.cfg.SSHUser, r.ID)
+				run.AttachLocal = fmt.Sprintf("sudo -u %s tmux attach-session -t %s", s.cfg.SSHUser, r.ID)
 			} else {
 				run.Attach = fmt.Sprintf("ssh -t %s tmux attach-session -t %s", hostname, r.ID)
+				run.AttachLocal = fmt.Sprintf("tmux attach-session -t %s", r.ID)
 			}
 		} else {
 			run.Attach = ""
+			run.AttachLocal = ""
 		}
 	})
 

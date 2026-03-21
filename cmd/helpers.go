@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/wesleygrimes/outpost/internal/config"
 	"google.golang.org/grpc/status"
 )
 
@@ -21,6 +22,25 @@ func logClose(c io.Closer) {
 	if err := c.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "close: %v\n", err)
 	}
+}
+
+// attachCmd returns the local attach command when the server is on the same
+// machine, falling back to the SSH command for remote servers.
+func attachCmd(attach, attachLocal string) string {
+	if attachLocal != "" && isLocalServer() {
+		return attachLocal
+	}
+	return attach
+}
+
+// isLocalServer reports whether the configured Outpost server is on the
+// local machine. Returns false if the config cannot be loaded.
+func isLocalServer() bool {
+	cfg, err := config.LoadClient()
+	if err != nil {
+		return false
+	}
+	return cfg.IsLocalServer()
 }
 
 // humanizeGRPCError extracts the human-readable message from a gRPC error,

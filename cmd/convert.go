@@ -45,12 +45,14 @@ func Convert(args []string) error {
 		return err
 	}
 
+	attach := attachCmd(r.Attach, r.AttachLocal)
+
 	if jsonOut {
 		return printJSON(map[string]string{
 			"id":     r.ID,
 			"mode":   string(r.Mode),
 			"status": string(r.Status),
-			"attach": r.Attach,
+			"attach": attach,
 		})
 	}
 
@@ -59,8 +61,8 @@ func Convert(args []string) error {
 	ui.Field("Run", ui.Amber(r.ID))
 	ui.Field("Mode", string(r.Mode))
 	ui.Field("Status", string(r.Status))
-	if r.Attach != "" {
-		ui.Field("Attach", r.Attach)
+	if attach != "" {
+		ui.Field("Attach", attach)
 	}
 
 	return nil

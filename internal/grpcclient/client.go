@@ -42,9 +42,10 @@ type HandoffMeta struct {
 
 // HandoffResult holds the response from a handoff.
 type HandoffResult struct {
-	ID     string
-	Status outpostv1.RunStatus
-	Attach string
+	ID          string
+	Status      outpostv1.RunStatus
+	Attach      string
+	AttachLocal string
 }
 
 // ServerDoctorResult holds the response from a server doctor check.
@@ -244,9 +245,10 @@ func (c *Client) Handoff(ctx context.Context, archivePath string, meta *HandoffM
 	}
 
 	return &HandoffResult{
-		ID:     resp.GetId(),
-		Status: resp.GetStatus(),
-		Attach: resp.GetAttach(),
+		ID:          resp.GetId(),
+		Status:      resp.GetStatus(),
+		Attach:      resp.GetAttach(),
+		AttachLocal: resp.GetAttachLocal(),
 	}, nil
 }
 

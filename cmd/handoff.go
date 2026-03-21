@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -93,11 +95,13 @@ func Handoff(args []string) error {
 
 	pb.Done(fmt.Sprintf("Streamed (%s in %s)", ui.FormatBytes(lastTotal), formatDuration(pb.Elapsed())))
 
+	attach := attachCmd(result.Attach, result.AttachLocal)
+
 	if *jsonOut {
 		return printJSON(map[string]string{
 			"id":     result.ID,
 			"status": string(result.Status),
-			"attach": result.Attach,
+			"attach": attach,
 		})
 	}
 
@@ -105,8 +109,8 @@ func Handoff(args []string) error {
 	ui.Errln()
 	ui.Field("Run", ui.Amber(result.ID))
 	ui.Field("Status", ui.Check(string(status)))
-	if result.Attach != "" {
-		ui.Field("Attach", result.Attach)
+	if attach != "" {
+		ui.Field("Attach", attach)
 	}
 	ui.Errln()
 	ui.Hint("Watch", "outpost status "+result.ID+" --follow")
@@ -116,7 +120,9 @@ func Handoff(args []string) error {
 }
 
 // readSessionJSONL finds and reads the session JSONL file from the Claude
-// projects directory for the current working directory.
+// projects directory for the current working directory. The returned bytes
+// are truncated to exclude the user turn that triggered the handoff so the
+// remote session resumes cleanly without re-executing the handoff.
 func readSessionJSONL(sessionID string) ([]byte, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -136,7 +142,54 @@ func readSessionJSONL(sessionID string) ([]byte, error) {
 		return nil, fmt.Errorf("read %s: %w", jsonlPath, err)
 	}
 
-	return data, nil
+	return truncateBeforeHandoff(data), nil
+}
+
+// truncateBeforeHandoff removes the last human user message and everything
+// after it from the JSONL. This prevents the remote session from seeing the
+// handoff request and recursively trying to hand off again.
+//
+// Human messages have {"type":"user","message":{"content":"<string>"}}.
+// Tool results also have type "user" but their content is an array, not a string.
+func truncateBeforeHandoff(data []byte) []byte {
+	lines := bytes.Split(bytes.TrimRight(data, "\n"), []byte("\n"))
+
+	lastHumanIdx := -1
+	for i := len(lines) - 1; i >= 0; i-- {
+		if isHumanMessage(lines[i]) {
+			lastHumanIdx = i
+			break
+		}
+	}
+
+	if lastHumanIdx <= 0 {
+		return data
+	}
+
+	kept := bytes.Join(lines[:lastHumanIdx], []byte("\n"))
+	kept = append(kept, '\n')
+	return kept
+}
+
+// isHumanMessage returns true if the JSONL line is a user-typed message
+// (as opposed to a tool result or other system message).
+func isHumanMessage(line []byte) bool {
+	var msg struct {
+		Type    string `json:"type"`
+		Message *struct {
+			Role    string          `json:"role"`
+			Content json.RawMessage `json:"content"`
+		} `json:"message"`
+	}
+	if err := json.Unmarshal(line, &msg); err != nil {
+		return false
+	}
+	if msg.Type != "user" || msg.Message == nil {
+		return false
+	}
+	// Human messages have a string content; tool results have an array.
+	trimmed := bytes.TrimSpace(msg.Message.Content)
+	return len(trimmed) > 0 && trimmed[0] == '"'
 }
 
 func formatDuration(d time.Duration) string {

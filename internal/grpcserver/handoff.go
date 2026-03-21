@@ -73,9 +73,10 @@ func (s *Server) Handoff(stream outpostv1.OutpostService_HandoffServer) error {
 	cleanupNeeded = false
 
 	return stream.SendAndClose(&outpostv1.HandoffResponse{
-		Id:     runID,
-		Status: outpostv1.RunStatus_RUN_STATUS_RUNNING,
-		Attach: run.Attach,
+		Id:          runID,
+		Status:      outpostv1.RunStatus_RUN_STATUS_RUNNING,
+		Attach:      run.Attach,
+		AttachLocal: run.AttachLocal,
 	})
 }
 
@@ -190,8 +191,10 @@ func (s *Server) buildRun(runID string, meta *outpostv1.HandoffMetadata, mode st
 		hostname, _ := os.Hostname()
 		if s.cfg.SSHUser != "" {
 			run.Attach = fmt.Sprintf("ssh -t %s sudo -u %s tmux attach-session -t %s", hostname, s.cfg.SSHUser, runID)
+			run.AttachLocal = fmt.Sprintf("sudo -u %s tmux attach-session -t %s", s.cfg.SSHUser, runID)
 		} else {
 			run.Attach = fmt.Sprintf("ssh -t %s tmux attach-session -t %s", hostname, runID)
+			run.AttachLocal = fmt.Sprintf("tmux attach-session -t %s", runID)
 		}
 	}
 

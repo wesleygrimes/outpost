@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -60,6 +62,27 @@ func LoadClient() (*ClientConfig, error) {
 	}
 
 	return &cfg, nil
+}
+
+// IsLocalServer reports whether the configured server address points to
+// the local machine (localhost, 127.0.0.1, ::1, or the machine's own hostname).
+func (c *ClientConfig) IsLocalServer() bool {
+	host := c.Server
+	// Strip port if present (host:port or [::1]:port).
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.ToLower(host)
+
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return true
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(host, hostname)
 }
 
 // Save writes the client config to ~/.config/outpost/config.yaml.

@@ -41,6 +41,7 @@ type Run struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	FinishedAt      *time.Time `json:"finished_at,omitempty"`
 	Attach          string     `json:"attach"`
+	AttachLocal     string     `json:"attach_local"`
 	LogTail         string     `json:"log_tail"`
 	PatchReady      bool       `json:"patch_ready"`
 	Branch          string     `json:"branch"`

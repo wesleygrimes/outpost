@@ -152,6 +152,36 @@ func TestMigrateOldDotfiles_PartialFiles(t *testing.T) {
 	}
 }
 
+func TestClientConfig_IsLocalServer(t *testing.T) {
+	t.Parallel()
+
+	hostname, _ := os.Hostname()
+
+	tests := []struct {
+		name   string
+		server string
+		want   bool
+	}{
+		{"localhost no port", "localhost", true},
+		{"localhost with port", "localhost:7600", true},
+		{"127.0.0.1 with port", "127.0.0.1:7600", true},
+		{"ipv6 loopback", "[::1]:7600", true},
+		{"own hostname", hostname + ":7600", true},
+		{"remote host", "remote.example.com:7600", false},
+		{"remote IP", "192.168.1.50:7600", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &ClientConfig{Server: tt.server}
+			if got := cfg.IsLocalServer(); got != tt.want {
+				t.Errorf("IsLocalServer(%q) = %v, want %v", tt.server, got, tt.want)
+			}
+		})
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
