@@ -7,8 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wesleygrimes/outpost/internal/config"
 	"google.golang.org/grpc/status"
+
+	"github.com/wesleygrimes/outpost/internal/config"
 )
 
 // DisplayedError wraps an error that was already shown to the user.

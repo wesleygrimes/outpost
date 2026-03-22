@@ -4,17 +4,17 @@ import (
 	"context"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/wesleygrimes/outpost/internal/grpcclient"
 )
 
-func handleDoctor(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+//nolint:gocritic // mcp-go ToolHandlerFunc requires CallToolRequest by value
+func handleDoctor(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	client, err := grpcclient.Load()
 	if err != nil {
 		return mcp.NewToolResultError("Outpost not configured. Run 'outpost login <host> <token>' first."), nil
 	}
-	defer client.Close()
-
-	ctx := context.Background()
+	defer func() { _ = client.Close() }()
 
 	doc, err := client.ServerDoctor(ctx)
 	if err != nil {

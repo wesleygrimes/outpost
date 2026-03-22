@@ -2,17 +2,18 @@ package mcp
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/wesleygrimes/outpost/internal/grpcclient"
 )
 
-func handlePickup(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+//nolint:gocritic // mcp-go ToolHandlerFunc requires CallToolRequest by value
+func handlePickup(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	runID, err := req.RequireString("run_id")
 	if err != nil {
 		return mcp.NewToolResultError("run_id is required"), nil
@@ -22,9 +23,7 @@ func handlePickup(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResu
 	if err != nil {
 		return mcp.NewToolResultError("Outpost not configured. Run 'outpost login <host> <token>' first."), nil
 	}
-	defer client.Close()
-
-	ctx := context.Background()
+	defer func() { _ = client.Close() }()
 
 	r, err := client.GetRun(ctx, runID)
 	if err != nil {
@@ -48,7 +47,7 @@ func handlePickup(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResu
 	// Download forked session if available.
 	var sessionID string
 	if r.SessionReady && r.ForkedSessionID != "" {
-		destPath, err := downloadSession(runID, r.ForkedSessionID)
+		destPath, err := downloadSession(r.ForkedSessionID)
 		if err == nil {
 			if dlErr := client.DownloadSession(ctx, runID, destPath); dlErr == nil {
 				sessionID = r.ForkedSessionID
@@ -72,7 +71,7 @@ func handlePickup(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResu
 	if diffStat != "" {
 		result["diff_stat"] = diffStat
 	}
-	result["message"] = fmt.Sprintf("Patch downloaded. Apply with: git apply %s", patchPath)
+	result["message"] = "Patch downloaded. Apply with: git apply " + patchPath
 
 	return mcp.NewToolResultJSON(result)
 }

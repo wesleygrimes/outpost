@@ -23,52 +23,52 @@ func main() {
 		os.Exit(1)
 	}
 
-	subcmd := args[0]
-	subargs := args[1:]
-	var err error
-
-	switch subcmd {
-	// Server commands.
-	case "server":
-		err = cmd.Server(subargs)
-	case "serve":
-		err = cmd.Serve()
-
-	// Client commands.
-	case "login":
-		err = cmd.Login(subargs)
-	case "doctor":
-		err = cmd.Doctor()
-	case "handoff":
-		err = cmd.Handoff(subargs)
-	case "status":
-		err = cmd.Status(subargs)
-	case "logs":
-		err = cmd.Logs(subargs)
-	case "pickup":
-		err = cmd.Pickup(subargs)
-	case "drop":
-		err = cmd.Drop(subargs)
-	case "convert":
-		err = cmd.Convert(subargs)
-	case "mcp":
-		err = cmd.MCP()
-
-	// Meta.
-	case "version":
-		fmt.Println(version)
-	default:
-		ui.Errf("error: unknown command %q\n", subcmd)
-		printUsage()
-		os.Exit(1)
-	}
-
-	if err != nil {
+	if err := run(args[0], args[1:]); err != nil {
 		var displayed *cmd.DisplayedError
 		if !errors.As(err, &displayed) {
 			ui.Errf("error: %v\n", err)
 		}
 		os.Exit(1)
+	}
+}
+
+func run(subcmd string, subargs []string) error {
+	switch subcmd {
+	// Server commands.
+	case "server":
+		return cmd.Server(subargs)
+	case "serve":
+		return cmd.Serve()
+
+	// Client commands.
+	case "login":
+		return cmd.Login(subargs)
+	case "doctor":
+		return cmd.Doctor()
+	case "handoff":
+		return cmd.Handoff(subargs)
+	case "status":
+		return cmd.Status(subargs)
+	case "logs":
+		return cmd.Logs(subargs)
+	case "pickup":
+		return cmd.Pickup(subargs)
+	case "drop":
+		return cmd.Drop(subargs)
+	case "convert":
+		return cmd.Convert(subargs)
+	case "mcp":
+		return cmd.MCP()
+
+	// Meta.
+	case "version":
+		fmt.Println(version)
+		return nil
+	default:
+		ui.Errf("error: unknown command %q\n", subcmd)
+		printUsage()
+		os.Exit(1)
+		return nil
 	}
 }
 

@@ -11,13 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/status"
+
 	"github.com/wesleygrimes/outpost/internal/config"
 	"github.com/wesleygrimes/outpost/internal/runner"
 	"github.com/wesleygrimes/outpost/internal/store"
-	"google.golang.org/grpc/status"
 )
-
-func boolPtr(b bool) *bool { return &b }
 
 // runToMap converts a store.Run to a map for JSON serialization.
 func runToMap(r *store.Run) map[string]any {
@@ -186,7 +185,7 @@ func createArchive() (string, error) {
 
 // downloadSession downloads the forked session JSONL to the local Claude
 // projects directory.
-func downloadSession(runID, forkedSessionID string) (string, error) {
+func downloadSession(forkedSessionID string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getwd: %w", err)

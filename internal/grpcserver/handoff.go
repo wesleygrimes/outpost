@@ -194,7 +194,7 @@ func (s *Server) buildRun(runID string, meta *outpostv1.HandoffMetadata, mode st
 			run.AttachLocal = fmt.Sprintf("sudo -u %s tmux attach-session -t %s", s.cfg.SSHUser, runID)
 		} else {
 			run.Attach = fmt.Sprintf("ssh -t %s tmux attach-session -t %s", hostname, runID)
-			run.AttachLocal = fmt.Sprintf("tmux attach-session -t %s", runID)
+			run.AttachLocal = "tmux attach-session -t " + runID
 		}
 	}
 

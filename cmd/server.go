@@ -101,6 +101,7 @@ func localServerSetup(jsonOutput bool) error {
 	cl.Row("")
 	cl.CloseWith("Ready. Token: " + cfg.Token)
 	ui.Errln()
+	ui.Hint("Start", "outpost serve")
 	ui.Hint("Connect", fmt.Sprintf("outpost login %s:%d %s", hostname, cfg.Port, cfg.Token))
 	return nil
 }

@@ -6,10 +6,12 @@ import (
 	"io"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/wesleygrimes/outpost/internal/grpcclient"
 )
 
-func handleLogs(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+//nolint:gocritic // mcp-go ToolHandlerFunc requires CallToolRequest by value
+func handleLogs(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	runID, err := req.RequireString("run_id")
 	if err != nil {
 		return mcp.NewToolResultError("run_id is required"), nil
@@ -24,9 +26,7 @@ func handleLogs(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult
 	if err != nil {
 		return mcp.NewToolResultError("Outpost not configured. Run 'outpost login <host> <token>' first."), nil
 	}
-	defer client.Close()
-
-	ctx := context.Background()
+	defer func() { _ = client.Close() }()
 
 	stream, err := client.TailLogs(ctx, runID, false)
 	if err != nil {

@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/wesleygrimes/outpost/internal/grpcclient"
 	"github.com/wesleygrimes/outpost/internal/store"
 )
 
-func handleConvert(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+//nolint:gocritic // mcp-go ToolHandlerFunc requires CallToolRequest by value
+func handleConvert(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	runID, err := req.RequireString("run_id")
 	if err != nil {
 		return mcp.NewToolResultError("run_id is required"), nil
@@ -33,9 +35,9 @@ func handleConvert(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 	if err != nil {
 		return mcp.NewToolResultError("Outpost not configured. Run 'outpost login <host> <token>' first."), nil
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
-	r, err := client.ConvertMode(context.Background(), runID, store.ModeToProto(targetMode))
+	r, err := client.ConvertMode(ctx, runID, store.ModeToProto(targetMode))
 	if err != nil {
 		return mcp.NewToolResultError("Failed to convert mode: " + humanizeGRPCError(err)), nil
 	}

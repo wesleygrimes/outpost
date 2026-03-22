@@ -2,15 +2,16 @@ package mcp
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/wesleygrimes/outpost/internal/grpcclient"
 	"github.com/wesleygrimes/outpost/internal/store"
 )
 
-func handleHandoff(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+//nolint:gocritic // mcp-go ToolHandlerFunc requires CallToolRequest by value
+func handleHandoff(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	sessionID, err := req.RequireString("session_id")
 	if err != nil {
 		return mcp.NewToolResultError("session_id is required"), nil
@@ -50,9 +51,7 @@ func handleHandoff(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 	if err != nil {
 		return mcp.NewToolResultError("Outpost not configured. Run 'outpost login <host> <token>' first."), nil
 	}
-	defer client.Close()
-
-	ctx := context.Background()
+	defer func() { _ = client.Close() }()
 
 	// Preflight capacity check.
 	doc, err := client.ServerDoctor(ctx)
@@ -92,7 +91,7 @@ func handleHandoff(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 	if result.AttachLocal != "" {
 		response["attach_local"] = result.AttachLocal
 	}
-	response["message"] = fmt.Sprintf("Session handed off successfully. Run ID: %s", result.ID)
+	response["message"] = "Session handed off successfully. Run ID: " + result.ID
 
 	return mcp.NewToolResultJSON(response)
 }

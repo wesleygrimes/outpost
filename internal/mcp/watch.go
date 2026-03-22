@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/wesleygrimes/outpost/internal/grpcclient"
 	"github.com/wesleygrimes/outpost/internal/store"
 )
 
+//nolint:gocritic // mcp-go ToolHandlerFunc requires CallToolRequest by value
 func handleWatch(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	runID, err := req.RequireString("run_id")
 	if err != nil {
@@ -25,7 +27,7 @@ func handleWatch(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 	if err != nil {
 		return mcp.NewToolResultError("Outpost not configured. Run 'outpost login <host> <token>' first."), nil
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	deadline := time.Now().Add(time.Duration(timeoutMinutes) * time.Minute)
 	start := time.Now()
